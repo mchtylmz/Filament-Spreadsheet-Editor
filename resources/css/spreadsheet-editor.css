@@ -38,3 +38,15 @@
 .filament-spreadsheet-editor__cell--invalid {
     box-shadow: inset 0 0 0 2px #dc2626;
 }
+
+.filament-spreadsheet-editor__cell--saved {
+    background-color: #dcfce7 !important;
+}
+
+.filament-spreadsheet-editor__cell--error {
+    background-color: #fee2e2 !important;
+}
+
+.filament-spreadsheet-editor__cell--conflict {
+    box-shadow: inset 0 0 0 2px #f97316;
+}

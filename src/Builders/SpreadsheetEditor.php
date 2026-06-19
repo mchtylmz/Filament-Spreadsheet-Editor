@@ -289,6 +289,7 @@ class SpreadsheetEditor implements Arrayable
             'adapter' => 'tabulator',
             'token' => $token,
             'dataUrl' => route('filament-spreadsheet-editor.rows.index', ['token' => $token]),
+            'saveUrl' => route('filament-spreadsheet-editor.rows.update', ['token' => $token]),
             'columns' => $this->gridColumns(),
             'rows' => $rows ?? $this->rows,
             'validationRules' => $this->serializedValidationRules(),
@@ -296,7 +297,7 @@ class SpreadsheetEditor implements Arrayable
                 'selectableRows' => $this->selectableRows,
                 'clipboard' => $this->clipboard,
                 'dirtyCells' => true,
-                'mockSave' => true,
+                'mockSave' => false,
             ],
         ];
     }

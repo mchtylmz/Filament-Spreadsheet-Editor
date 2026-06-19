@@ -112,7 +112,12 @@ export class TabulatorSpreadsheetAdapter {
     }
 
     changes() {
-        return this.buffer.all();
+        return this.buffer.all().map((change) => ({
+            id: change.rowId,
+            field: change.field,
+            old: change.oldValue,
+            value: change.value,
+        }));
     }
 
     clearChanges() {
@@ -121,6 +126,63 @@ export class TabulatorSpreadsheetAdapter {
         this.element
             .querySelectorAll('.filament-spreadsheet-editor__cell--dirty')
             .forEach((cell) => cell.classList.remove('filament-spreadsheet-editor__cell--dirty'));
+
+        this.clearResultClasses();
+    }
+
+    applySaveResults(results = []) {
+        this.clearResultClasses();
+
+        results.forEach((result) => {
+            const cell = this.cellFor(result.id, result.field);
+
+            if (!cell) {
+                return;
+            }
+
+            const element = cell.getElement();
+            element.dataset.saveStatus = result.status;
+            element.dataset.saveErrors = (result.errors ?? []).join(',');
+            element.classList.toggle('filament-spreadsheet-editor__cell--saved', result.status === 'success' && result.committed !== false);
+            element.classList.toggle('filament-spreadsheet-editor__cell--error', result.status !== 'success');
+            element.classList.toggle('filament-spreadsheet-editor__cell--conflict', result.status === 'conflict');
+        });
+
+        if (results.every((result) => result.status === 'success' && result.committed !== false)) {
+            this.clearChanges();
+        }
+    }
+
+    cellFor(rowId, field) {
+        const row = this.table?.getRow(rowId);
+
+        if (!row) {
+            return null;
+        }
+
+        try {
+            return row.getCell(field);
+        } catch (_error) {
+            return null;
+        }
+    }
+
+    clearResultClasses() {
+        this.element
+            .querySelectorAll([
+                '.filament-spreadsheet-editor__cell--saved',
+                '.filament-spreadsheet-editor__cell--error',
+                '.filament-spreadsheet-editor__cell--conflict',
+            ].join(','))
+            .forEach((cell) => {
+                cell.classList.remove(
+                    'filament-spreadsheet-editor__cell--saved',
+                    'filament-spreadsheet-editor__cell--error',
+                    'filament-spreadsheet-editor__cell--conflict',
+                );
+                delete cell.dataset.saveStatus;
+                delete cell.dataset.saveErrors;
+            });
     }
 
     destroy() {

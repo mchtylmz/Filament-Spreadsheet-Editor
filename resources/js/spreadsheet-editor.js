@@ -17,7 +17,7 @@ window.filamentSpreadsheetEditor = function filamentSpreadsheetEditor(config = {
             });
         },
 
-        save() {
+        async save() {
             if (!this.adapter || !this.hasChanges) {
                 return;
             }
@@ -27,12 +27,27 @@ window.filamentSpreadsheetEditor = function filamentSpreadsheetEditor(config = {
             const changes = this.adapter.changes();
             this.$dispatch('filament-spreadsheet-editor:saving', { changes });
 
-            window.setTimeout(() => {
-                this.adapter.clearChanges();
-                this.hasChanges = false;
+            try {
+                const response = await window.fetch(config.saveUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
+                    },
+                    body: JSON.stringify({ changes }),
+                });
+
+                const payload = await response.json();
+
+                this.adapter.applySaveResults(payload.results ?? []);
+                this.hasChanges = this.adapter.buffer.hasChanges();
                 this.saving = false;
-                this.$dispatch('filament-spreadsheet-editor:saved', { changes });
-            }, 250);
+                this.$dispatch('filament-spreadsheet-editor:saved', { changes, response: payload });
+            } catch (error) {
+                this.saving = false;
+                this.$dispatch('filament-spreadsheet-editor:save-failed', { changes, error });
+            }
         },
 
         destroy() {

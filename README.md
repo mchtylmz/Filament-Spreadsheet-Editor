@@ -143,7 +143,7 @@ npm run build
 php artisan vendor:publish --tag=filament-spreadsheet-editor-assets
 ```
 
-The first frontend adapter uses Tabulator. It supports editable cells, selectable rows, clipboard copy/paste through Tabulator, text/number/integer/boolean/date column types, dirty-cell highlighting, and a mock save event. Server persistence is not implemented yet.
+The first frontend adapter uses Tabulator. It supports editable cells, selectable rows, clipboard copy/paste through Tabulator, text/number/integer/boolean/date column types, dirty-cell highlighting, and batch save events.
 
 ## Backend Data Loading
 
@@ -190,3 +190,31 @@ The Blade component registers its editor and includes `dataUrl` in the frontend 
 ```
 
 Only configured columns are searchable, sortable, filterable, and returned in row payloads.
+
+## Saving Changes
+
+Edited cells are posted back to the registered editor token:
+
+```text
+POST /filament-spreadsheet-editor/editors/{token}/rows
+```
+
+Payload:
+
+```json
+{
+  "changes": [
+    {"id": 1, "field": "price", "old": "10.00", "value": "12.50"},
+    {"id": 1, "field": "stock", "old": 4, "value": 5}
+  ]
+}
+```
+
+The save action validates that each field is editable, applies Laravel validation rules from `SpreadsheetColumn`, checks optimistic locking against the `old` value, runs inside a transaction, and returns per-cell statuses:
+
+- `success`
+- `validation_error`
+- `conflict`
+- `forbidden`
+
+The package dispatches `SpreadsheetCellUpdating`, `SpreadsheetCellUpdated`, and `SpreadsheetBatchUpdated` events during committed saves.
