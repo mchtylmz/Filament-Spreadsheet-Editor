@@ -33,7 +33,44 @@ Register the plugin on a Filament panel:
 use Mivento\FilamentSpreadsheetEditor\SpreadsheetEditorPlugin;
 
 $panel
-    ->plugin(SpreadsheetEditorPlugin::make());
+    ->plugin(
+        SpreadsheetEditorPlugin::make()
+            ->defaultAdapter('tabulator')
+            ->enableAuditLog()
+            ->enableCsvImport()
+            ->enableCsvExport()
+    );
+```
+
+## Editor API
+
+Define spreadsheet editors with a small builder API. This package does not ship the full UI yet; the builder serializes model, column, validation, grid, query, and authorization metadata for the future Livewire/Filament layer.
+
+```php
+use App\Models\Product;
+use Mivento\FilamentSpreadsheetEditor\SpreadsheetColumn;
+use Mivento\FilamentSpreadsheetEditor\SpreadsheetEditor;
+
+SpreadsheetEditor::make()
+    ->model(Product::class)
+    ->columns([
+        SpreadsheetColumn::make('sku')->required()->unique(),
+        SpreadsheetColumn::make('name')->searchable()->editable(),
+        SpreadsheetColumn::make('price')->numeric()->min(0)->editable(),
+        SpreadsheetColumn::make('stock')->integer()->editable(),
+    ])
+    ->query(fn ($query) => $query->where('active', true))
+    ->authorize(fn ($user) => $user->can('manage products'));
+```
+
+Columns are read-only by default. Calling `editable()` marks the column as editable in the serialized grid configuration. Validation rules are stored as Laravel-compatible strings. A bare `unique()` rule is resolved from the configured model when the editor serializes validation rules:
+
+```php
+SpreadsheetColumn::make('price')
+    ->numeric()
+    ->min(0)
+    ->editable()
+    ->toGridColumn();
 ```
 
 ## Grid Adapters
