@@ -1,0 +1,10 @@
+# Changelog
+
+All notable changes to `mivento/filament-spreadsheet-editor` will be documented in this file.
+
+## 0.1.0 - Unreleased
+
+- Initial package skeleton.
+- Added Filament plugin registration class.
+- Added service provider with config, views, assets, and grid adapter binding.
+- Added Tabulator as the first grid adapter.

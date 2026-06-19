@@ -1,0 +1,12 @@
+/vendor
+/node_modules
+/.phpunit.cache
+/.pest
+/coverage
+/composer.lock
+/dist
+/build
+/.DS_Store
+/.idea
+/.vscode
+/.env

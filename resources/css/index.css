@@ -1,0 +1,8 @@
+.filament-spreadsheet-editor {
+    width: 100%;
+}
+
+.filament-spreadsheet-editor__grid {
+    min-height: 24rem;
+    overflow: hidden;
+}

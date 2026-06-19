@@ -1,0 +1,15 @@
+{
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build",
+        "dev": "vite build --watch"
+    },
+    "dependencies": {
+        "alpinejs": "^3.14.0",
+        "tabulator-tables": "^6.3.0"
+    },
+    "devDependencies": {
+        "vite": "^5.0.0"
+    }
+}
