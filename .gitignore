@@ -5,6 +5,7 @@
 /coverage
 /composer.lock
 /build
+/AGENTS.md
 .DS_Store
 /.idea
 /.vscode
