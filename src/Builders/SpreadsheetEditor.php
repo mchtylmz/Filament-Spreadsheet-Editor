@@ -24,6 +24,13 @@ class SpreadsheetEditor implements Arrayable
 
     protected ?Closure $authorizationCallback = null;
 
+    protected bool $selectableRows = true;
+
+    protected bool $clipboard = true;
+
+    /** @var array<int, array<string, mixed>> */
+    protected array $rows = [];
+
     protected function __construct()
     {
         //
@@ -78,6 +85,30 @@ class SpreadsheetEditor implements Arrayable
         return $this;
     }
 
+    public function selectableRows(bool $condition = true): static
+    {
+        $this->selectableRows = $condition;
+
+        return $this;
+    }
+
+    public function clipboard(bool $condition = true): static
+    {
+        $this->clipboard = $condition;
+
+        return $this;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    public function rows(array $rows): static
+    {
+        $this->rows = array_values($rows);
+
+        return $this;
+    }
+
     /**
      * @return class-string<Model>|null
      */
@@ -102,6 +133,24 @@ class SpreadsheetEditor implements Arrayable
     public function getAuthorizationCallback(): ?Closure
     {
         return $this->authorizationCallback;
+    }
+
+    public function hasSelectableRows(): bool
+    {
+        return $this->selectableRows;
+    }
+
+    public function hasClipboard(): bool
+    {
+        return $this->clipboard;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function getRows(): array
+    {
+        return $this->rows;
     }
 
     public function applyQuery(Builder $query): Builder
@@ -194,8 +243,31 @@ class SpreadsheetEditor implements Arrayable
             ),
             'gridColumns' => $this->gridColumns(),
             'validationRules' => $this->serializedValidationRules(),
+            'rows' => $this->rows,
+            'selectableRows' => $this->selectableRows,
+            'clipboard' => $this->clipboard,
             'hasQueryCallback' => $this->queryCallback !== null,
             'hasAuthorizationCallback' => $this->authorizationCallback !== null,
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>|null  $rows
+     * @return array<string, mixed>
+     */
+    public function toFrontendConfig(?array $rows = null): array
+    {
+        return [
+            'adapter' => 'tabulator',
+            'columns' => $this->gridColumns(),
+            'rows' => $rows ?? $this->rows,
+            'validationRules' => $this->serializedValidationRules(),
+            'features' => [
+                'selectableRows' => $this->selectableRows,
+                'clipboard' => $this->clipboard,
+                'dirtyCells' => true,
+                'mockSave' => true,
+            ],
         ];
     }
 

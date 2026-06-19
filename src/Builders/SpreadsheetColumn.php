@@ -19,6 +19,8 @@ class SpreadsheetColumn implements Arrayable
 
     protected bool $sortable = true;
 
+    protected string $type = 'text';
+
     /** @var array<int, string> */
     protected array $rules = [];
 
@@ -89,12 +91,42 @@ class SpreadsheetColumn implements Arrayable
 
     public function numeric(): static
     {
+        $this->type = 'number';
+
         return $this->rule('numeric');
     }
 
     public function integer(): static
     {
+        $this->type = 'integer';
+
         return $this->rule('integer');
+    }
+
+    public function text(): static
+    {
+        $this->type = 'text';
+
+        return $this;
+    }
+
+    public function number(): static
+    {
+        return $this->numeric();
+    }
+
+    public function boolean(): static
+    {
+        $this->type = 'boolean';
+
+        return $this;
+    }
+
+    public function date(): static
+    {
+        $this->type = 'date';
+
+        return $this;
     }
 
     public function min(int|float $value): static
@@ -153,6 +185,11 @@ class SpreadsheetColumn implements Arrayable
         return $this->sortable;
     }
 
+    public function getType(): string
+    {
+        return $this->type;
+    }
+
     /**
      * @return array<int, string>
      */
@@ -180,10 +217,11 @@ class SpreadsheetColumn implements Arrayable
         return [
             'field' => $this->name,
             'title' => $this->getLabel(),
-            'editor' => $this->editable ? 'input' : false,
+            'type' => $this->type,
+            'editor' => $this->editable ? $this->editorForType() : false,
             'editable' => $this->editable,
             'searchable' => $this->searchable,
-            'sorter' => $this->sortable ? 'string' : false,
+            'sorter' => $this->sortable ? $this->sorterForType() : false,
             'validationRules' => $this->rules,
         ];
     }
@@ -196,10 +234,31 @@ class SpreadsheetColumn implements Arrayable
         return [
             'name' => $this->name,
             'label' => $this->getLabel(),
+            'type' => $this->type,
             'editable' => $this->editable,
             'searchable' => $this->searchable,
             'sortable' => $this->sortable,
             'rules' => $this->rules,
         ];
+    }
+
+    protected function editorForType(): string
+    {
+        return match ($this->type) {
+            'boolean' => 'tickCross',
+            'date' => 'date',
+            'integer', 'number' => 'number',
+            default => 'input',
+        };
+    }
+
+    protected function sorterForType(): string
+    {
+        return match ($this->type) {
+            'boolean' => 'boolean',
+            'date' => 'date',
+            'integer', 'number' => 'number',
+            default => 'string',
+        };
     }
 }

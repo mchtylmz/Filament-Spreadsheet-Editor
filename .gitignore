@@ -4,9 +4,8 @@
 /.pest
 /coverage
 /composer.lock
-/dist
 /build
-/.DS_Store
+.DS_Store
 /.idea
 /.vscode
 /.env

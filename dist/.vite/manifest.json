@@ -1,0 +1,17 @@
+{
+  "resources/css/spreadsheet-editor.css": {
+    "file": "spreadsheet-editor-style.css",
+    "name": "spreadsheet-editor-style",
+    "names": [
+      "spreadsheet-editor-style.css"
+    ],
+    "src": "resources/css/spreadsheet-editor.css",
+    "isEntry": true
+  },
+  "resources/js/spreadsheet-editor.js": {
+    "file": "spreadsheet-editor.js",
+    "name": "spreadsheet-editor",
+    "src": "resources/js/spreadsheet-editor.js",
+    "isEntry": true
+  }
+}

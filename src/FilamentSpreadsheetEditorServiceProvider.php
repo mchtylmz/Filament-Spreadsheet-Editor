@@ -2,6 +2,7 @@
 
 namespace Mivento\FilamentSpreadsheetEditor;
 
+use Illuminate\Support\Facades\Blade;
 use Mivento\FilamentSpreadsheetEditor\Contracts\GridAdapter;
 use Mivento\FilamentSpreadsheetEditor\GridAdapters\TabulatorGridAdapter;
 use Spatie\LaravelPackageTools\Package;
@@ -31,9 +32,18 @@ class FilamentSpreadsheetEditorServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
+        Blade::anonymousComponentPath(
+            __DIR__ . '/../resources/views/components',
+            'filament-spreadsheet-editor',
+        );
+
+        $this->publishes([
+            __DIR__ . '/../dist' => public_path('vendor/filament-spreadsheet-editor'),
+        ], 'filament-spreadsheet-editor-assets');
+
         $this->publishes([
             __DIR__ . '/../resources/js' => resource_path('js/vendor/filament-spreadsheet-editor'),
             __DIR__ . '/../resources/css' => resource_path('css/vendor/filament-spreadsheet-editor'),
-        ], 'filament-spreadsheet-editor-assets');
+        ], 'filament-spreadsheet-editor-source');
     }
 }

@@ -86,4 +86,61 @@ composer analyse
 composer format
 ```
 
-Frontend entry points live in `resources/js/index.js` and `resources/css/index.css`. Host applications should include or bundle the published assets with their Vite setup until a dedicated Filament asset pipeline integration is implemented.
+Frontend entry points live in `resources/js/spreadsheet-editor.js` and `resources/css/spreadsheet-editor.css`. Host applications should include or bundle the published assets with their Vite setup until a dedicated Filament asset pipeline integration is implemented.
+
+## Filament Custom Page Usage
+
+Build an editor definition in your Filament page class:
+
+```php
+use App\Models\Product;
+use Filament\Pages\Page;
+use Mivento\FilamentSpreadsheetEditor\SpreadsheetColumn;
+use Mivento\FilamentSpreadsheetEditor\SpreadsheetEditor;
+
+class ManageProductsSpreadsheet extends Page
+{
+    protected string $view = 'filament.pages.manage-products-spreadsheet';
+
+    public function editor(): SpreadsheetEditor
+    {
+        return SpreadsheetEditor::make()
+            ->model(Product::class)
+            ->columns([
+                SpreadsheetColumn::make('sku')->required()->unique(),
+                SpreadsheetColumn::make('name')->text()->searchable()->editable(),
+                SpreadsheetColumn::make('price')->number()->min(0)->editable(),
+                SpreadsheetColumn::make('stock')->integer()->editable(),
+                SpreadsheetColumn::make('active')->boolean()->editable(),
+                SpreadsheetColumn::make('available_on')->date()->editable(),
+            ])
+            ->query(fn ($query) => $query->where('active', true))
+            ->authorize(fn ($user) => $user->can('manage products'));
+    }
+}
+```
+
+Render the Blade component from the page view:
+
+```blade
+<x-filament-spreadsheet-editor::spreadsheet-editor :editor="$this->editor()" />
+```
+
+Include the built assets from your host app while the package asset pipeline is still intentionally lightweight:
+
+```blade
+@vite([
+    'vendor/mivento/filament-spreadsheet-editor/resources/js/spreadsheet-editor.js',
+    'vendor/mivento/filament-spreadsheet-editor/resources/css/spreadsheet-editor.css',
+])
+```
+
+Or publish the compiled package assets after running the package build:
+
+```bash
+npm install
+npm run build
+php artisan vendor:publish --tag=filament-spreadsheet-editor-assets
+```
+
+The first frontend adapter uses Tabulator. It supports editable cells, selectable rows, clipboard copy/paste through Tabulator, text/number/integer/boolean/date column types, dirty-cell highlighting, and a mock save event. Server persistence is not implemented yet.

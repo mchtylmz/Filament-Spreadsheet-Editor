@@ -3,18 +3,16 @@ import { defineConfig } from 'vite';
 export default defineConfig({
     build: {
         emptyOutDir: true,
-        lib: {
-            entry: [
-                'resources/js/index.js',
-                'resources/css/index.css',
-            ],
-            name: 'FilamentSpreadsheetEditor',
-        },
         outDir: 'dist',
+        manifest: true,
         rollupOptions: {
+            input: {
+                'spreadsheet-editor': 'resources/js/spreadsheet-editor.js',
+                'spreadsheet-editor-style': 'resources/css/spreadsheet-editor.css',
+            },
             output: {
-                assetFileNames: 'filament-spreadsheet-editor.[ext]',
-                entryFileNames: 'filament-spreadsheet-editor.js',
+                assetFileNames: '[name].[ext]',
+                entryFileNames: '[name].js',
             },
         },
     },

@@ -28,9 +28,21 @@ it('builds a spreadsheet editor definition for an eloquent model', function (): 
         ])
         ->and($editor->toArray())->toMatchArray([
             'model' => Product::class,
+            'selectableRows' => true,
+            'clipboard' => true,
             'hasQueryCallback' => true,
             'hasAuthorizationCallback' => true,
         ]);
+
+    expect($editor->toFrontendConfig())->toMatchArray([
+        'adapter' => 'tabulator',
+        'features' => [
+            'selectableRows' => true,
+            'clipboard' => true,
+            'dirtyCells' => true,
+            'mockSave' => true,
+        ],
+    ]);
 
     $user = new class
     {
