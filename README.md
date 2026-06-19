@@ -144,3 +144,49 @@ php artisan vendor:publish --tag=filament-spreadsheet-editor-assets
 ```
 
 The first frontend adapter uses Tabulator. It supports editable cells, selectable rows, clipboard copy/paste through Tabulator, text/number/integer/boolean/date column types, dirty-cell highlighting, and a mock save event. Server persistence is not implemented yet.
+
+## Backend Data Loading
+
+The package registers an authenticated JSON endpoint:
+
+```text
+GET /filament-spreadsheet-editor/editors/{token}/rows
+```
+
+Spreadsheet editors are loaded through a server-side registry token. The request never chooses a model class directly.
+
+```php
+use App\Models\Product;
+use Mivento\FilamentSpreadsheetEditor\SpreadsheetColumn;
+use Mivento\FilamentSpreadsheetEditor\SpreadsheetEditor;
+use Mivento\FilamentSpreadsheetEditor\Support\SpreadsheetEditorRegistry;
+
+$editor = SpreadsheetEditor::make()
+    ->model(Product::class)
+    ->columns([
+        SpreadsheetColumn::make('sku')->searchable(),
+        SpreadsheetColumn::make('name')->searchable()->editable(),
+        SpreadsheetColumn::make('price')->number()->editable(),
+        SpreadsheetColumn::make('stock')->integer()->editable(),
+    ])
+    ->query(fn ($query) => $query->where('active', true))
+    ->tenantQuery(fn ($query, $tenant) => $query->whereBelongsTo($tenant))
+    ->authorize(fn ($user) => $user->can('manage products'));
+
+$token = app(SpreadsheetEditorRegistry::class)->register($editor, 'products');
+```
+
+The endpoint supports:
+
+- `page` and `per_page`
+- `search`
+- `sort[field]` and `sort[direction]`
+- `filters[column_name]=value`
+
+The Blade component registers its editor and includes `dataUrl` in the frontend config automatically:
+
+```blade
+<x-filament-spreadsheet-editor::spreadsheet-editor :editor="$this->editor()" />
+```
+
+Only configured columns are searchable, sortable, filterable, and returned in row payloads.

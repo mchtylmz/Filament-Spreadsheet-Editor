@@ -13,7 +13,8 @@ export class TabulatorSpreadsheetAdapter {
 
     mount() {
         this.table = new Tabulator(this.element, {
-            data: this.config.rows ?? [],
+            ...this.remoteOptions(),
+            data: this.config.dataUrl ? undefined : (this.config.rows ?? []),
             columns: this.columns(),
             layout: 'fitColumns',
             reactiveData: true,
@@ -28,6 +29,44 @@ export class TabulatorSpreadsheetAdapter {
         this.table.on('cellEdited', (cell) => this.trackCell(cell));
 
         return this;
+    }
+
+    remoteOptions() {
+        if (!this.config.dataUrl) {
+            return {};
+        }
+
+        return {
+            ajaxURL: this.config.dataUrl,
+            ajaxConfig: 'GET',
+            pagination: true,
+            paginationMode: 'remote',
+            paginationSize: this.config.pagination?.perPage ?? 25,
+            sortMode: 'remote',
+            filterMode: 'remote',
+            ajaxURLGenerator: (url, _config, params) => {
+                const searchParams = new URLSearchParams();
+
+                searchParams.set('page', params.page ?? 1);
+                searchParams.set('per_page', params.size ?? this.config.pagination?.perPage ?? 25);
+
+                (params.sorters ?? []).forEach((sorter, index) => {
+                    searchParams.set(`sorters[${index}][field]`, sorter.field);
+                    searchParams.set(`sorters[${index}][dir]`, sorter.dir);
+                });
+
+                (params.filters ?? []).forEach((filter, index) => {
+                    searchParams.set(`filters[${index}][field]`, filter.field);
+                    searchParams.set(`filters[${index}][value]`, filter.value);
+                });
+
+                return `${url}?${searchParams.toString()}`;
+            },
+            ajaxResponse: (_url, _params, response) => ({
+                data: response.data ?? [],
+                last_page: response.meta?.last_page ?? 1,
+            }),
+        };
     }
 
     columns() {

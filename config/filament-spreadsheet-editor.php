@@ -15,4 +15,9 @@ return [
     'assets' => [
         'load_tabulator_from_cdn' => false,
     ],
+
+    'routes' => [
+        'prefix' => 'filament-spreadsheet-editor',
+        'middleware' => ['web', 'auth'],
+    ],
 ];

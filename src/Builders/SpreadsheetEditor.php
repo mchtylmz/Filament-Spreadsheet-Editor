@@ -24,6 +24,8 @@ class SpreadsheetEditor implements Arrayable
 
     protected ?Closure $authorizationCallback = null;
 
+    protected ?Closure $tenantQueryCallback = null;
+
     protected bool $selectableRows = true;
 
     protected bool $clipboard = true;
@@ -85,6 +87,13 @@ class SpreadsheetEditor implements Arrayable
         return $this;
     }
 
+    public function tenantQuery(Closure $callback): static
+    {
+        $this->tenantQueryCallback = $callback;
+
+        return $this;
+    }
+
     public function selectableRows(bool $condition = true): static
     {
         $this->selectableRows = $condition;
@@ -135,6 +144,11 @@ class SpreadsheetEditor implements Arrayable
         return $this->authorizationCallback;
     }
 
+    public function getTenantQueryCallback(): ?Closure
+    {
+        return $this->tenantQueryCallback;
+    }
+
     public function hasSelectableRows(): bool
     {
         return $this->selectableRows;
@@ -160,6 +174,17 @@ class SpreadsheetEditor implements Arrayable
         }
 
         $result = ($this->queryCallback)($query);
+
+        return $result instanceof Builder ? $result : $query;
+    }
+
+    public function applyTenantQuery(Builder $query, mixed $tenant): Builder
+    {
+        if ($this->tenantQueryCallback === null || $tenant === null) {
+            return $query;
+        }
+
+        $result = ($this->tenantQueryCallback)($query, $tenant);
 
         return $result instanceof Builder ? $result : $query;
     }
@@ -248,6 +273,7 @@ class SpreadsheetEditor implements Arrayable
             'clipboard' => $this->clipboard,
             'hasQueryCallback' => $this->queryCallback !== null,
             'hasAuthorizationCallback' => $this->authorizationCallback !== null,
+            'hasTenantQueryCallback' => $this->tenantQueryCallback !== null,
         ];
     }
 
@@ -257,8 +283,12 @@ class SpreadsheetEditor implements Arrayable
      */
     public function toFrontendConfig(?array $rows = null): array
     {
+        $token = app(\Mivento\FilamentSpreadsheetEditor\Support\SpreadsheetEditorRegistry::class)->register($this);
+
         return [
             'adapter' => 'tabulator',
+            'token' => $token,
+            'dataUrl' => route('filament-spreadsheet-editor.rows.index', ['token' => $token]),
             'columns' => $this->gridColumns(),
             'rows' => $rows ?? $this->rows,
             'validationRules' => $this->serializedValidationRules(),

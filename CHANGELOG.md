@@ -11,3 +11,4 @@ All notable changes to `mivento/filament-spreadsheet-editor` will be documented 
 - Added public spreadsheet editor and column builder APIs.
 - Added plugin feature toggles for audit log, CSV import, and CSV export.
 - Added the first Tabulator frontend adapter with Vite assets and a Blade component.
+- Added authenticated backend row loading with registry tokens, pagination, search, sorting, filters, and tenant query hooks.

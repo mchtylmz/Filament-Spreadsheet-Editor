@@ -15,6 +15,7 @@ class FilamentSpreadsheetEditorServiceProvider extends PackageServiceProvider
         $package
             ->name('filament-spreadsheet-editor')
             ->hasConfigFile()
+            ->hasRoute('filament-spreadsheet-editor')
             ->hasViews();
     }
 
