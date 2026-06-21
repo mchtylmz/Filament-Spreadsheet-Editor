@@ -6,6 +6,7 @@
 /composer.lock
 /build
 /AGENTS.md
+/.codex/
 .DS_Store
 /.idea
 /.vscode
