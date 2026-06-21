@@ -38,10 +38,20 @@ it('serializes supported grid column types', function (): void {
         ->toMatchArray(['type' => 'integer', 'editor' => 'number', 'sorter' => 'number']);
 
     expect(SpreadsheetColumn::make('active')->boolean()->editable()->toGridColumn())
-        ->toMatchArray(['type' => 'boolean', 'editor' => 'tickCross', 'sorter' => 'boolean']);
+        ->toMatchArray([
+            'type' => 'boolean',
+            'editor' => 'tickCross',
+            'sorter' => 'boolean',
+            'validationRules' => ['boolean'],
+        ]);
 
     expect(SpreadsheetColumn::make('available_on')->date()->editable()->toGridColumn())
-        ->toMatchArray(['type' => 'date', 'editor' => 'date', 'sorter' => 'date']);
+        ->toMatchArray([
+            'type' => 'date',
+            'editor' => 'date',
+            'sorter' => 'date',
+            'validationRules' => ['date'],
+        ]);
 });
 
 it('keeps columns read only until editable is enabled', function (): void {

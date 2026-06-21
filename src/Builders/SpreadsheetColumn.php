@@ -121,14 +121,14 @@ class SpreadsheetColumn implements Arrayable
     {
         $this->type = 'boolean';
 
-        return $this;
+        return $this->rule('boolean');
     }
 
     public function date(): static
     {
         $this->type = 'date';
 
-        return $this;
+        return $this->rule('date');
     }
 
     public function min(int|float $value): static
