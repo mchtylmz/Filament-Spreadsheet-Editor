@@ -21,3 +21,22 @@ test('indexes serialized validation rules by field', () => {
         price: ['numeric', 'min:0'],
     });
 });
+
+test('validates boolean and date rules', () => {
+    assert.deepEqual(validateCell('yes', ['boolean']), {
+        valid: false,
+        errors: ['boolean'],
+    });
+    assert.deepEqual(validateCell('1', ['boolean']), {
+        valid: true,
+        errors: [],
+    });
+    assert.deepEqual(validateCell('not-a-date', ['date']), {
+        valid: false,
+        errors: ['date'],
+    });
+    assert.deepEqual(validateCell('2026-06-22', ['date']), {
+        valid: true,
+        errors: [],
+    });
+});

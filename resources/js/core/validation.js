@@ -16,6 +16,21 @@ export function validateCell(value, rules = []) {
             errors.push('integer');
         }
 
+        if (name === 'boolean' && value !== '' && value !== null && ![
+            true,
+            false,
+            0,
+            1,
+            '0',
+            '1',
+        ].includes(value)) {
+            errors.push('boolean');
+        }
+
+        if (name === 'date' && value !== '' && value !== null && Number.isNaN(Date.parse(value))) {
+            errors.push('date');
+        }
+
         if (name === 'min' && value !== '' && value !== null && Number(value) < Number(parameter)) {
             errors.push(`min:${parameter}`);
         }
