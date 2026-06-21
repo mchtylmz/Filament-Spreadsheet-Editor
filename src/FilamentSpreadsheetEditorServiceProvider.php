@@ -5,6 +5,7 @@ namespace Mivento\FilamentSpreadsheetEditor;
 use Illuminate\Support\Facades\Blade;
 use Mivento\FilamentSpreadsheetEditor\Contracts\GridAdapter;
 use Mivento\FilamentSpreadsheetEditor\GridAdapters\TabulatorGridAdapter;
+use Mivento\FilamentSpreadsheetEditor\Support\SpreadsheetEditorRegistry;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -21,6 +22,8 @@ class FilamentSpreadsheetEditorServiceProvider extends PackageServiceProvider
 
     public function packageRegistered(): void
     {
+        $this->app->scoped(SpreadsheetEditorRegistry::class);
+
         $this->app->bind(GridAdapter::class, function (): GridAdapter {
             $adapter = config('filament-spreadsheet-editor.grid.adapter', 'tabulator');
 

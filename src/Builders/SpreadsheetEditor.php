@@ -283,13 +283,11 @@ class SpreadsheetEditor implements Arrayable
      */
     public function toFrontendConfig(?array $rows = null): array
     {
-        $token = app(\Mivento\FilamentSpreadsheetEditor\Support\SpreadsheetEditorRegistry::class)->register($this);
+        $registry = app(\Mivento\FilamentSpreadsheetEditor\Support\SpreadsheetEditorRegistry::class);
+        $token = $registry->tokenForEditor($this);
 
-        return [
+        $config = [
             'adapter' => 'tabulator',
-            'token' => $token,
-            'dataUrl' => route('filament-spreadsheet-editor.rows.index', ['token' => $token]),
-            'saveUrl' => route('filament-spreadsheet-editor.rows.update', ['token' => $token]),
             'columns' => $this->gridColumns(),
             'rows' => $rows ?? $this->rows,
             'validationRules' => $this->serializedValidationRules(),
@@ -297,8 +295,19 @@ class SpreadsheetEditor implements Arrayable
                 'selectableRows' => $this->selectableRows,
                 'clipboard' => $this->clipboard,
                 'dirtyCells' => true,
-                'mockSave' => false,
+                'mockSave' => $token === null,
             ],
+        ];
+
+        if ($token === null) {
+            return $config;
+        }
+
+        return [
+            ...$config,
+            'token' => $token,
+            'dataUrl' => route('filament-spreadsheet-editor.rows.index', ['token' => $token]),
+            'saveUrl' => route('filament-spreadsheet-editor.rows.update', ['token' => $token]),
         ];
     }
 

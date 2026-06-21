@@ -33,10 +33,15 @@ class LoadSpreadsheetRows
             ->map(fn (SpreadsheetColumn $column): string => $column->getName())
             ->values()
             ->all();
+        $sortableFields = $columns
+            ->filter(fn (SpreadsheetColumn $column): bool => $column->isSortable())
+            ->map(fn (SpreadsheetColumn $column): string => $column->getName())
+            ->values()
+            ->all();
 
         $this->applySearch($query, $request, $searchableFields);
         $this->applyFilters($query, $request, $fields);
-        $this->applySorting($query, $request, $fields);
+        $this->applySorting($query, $request, $sortableFields);
 
         $perPage = max(1, min((int) $request->integer('per_page', 25), 100));
         $page = max(1, (int) $request->integer('page', 1));

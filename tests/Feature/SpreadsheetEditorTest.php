@@ -40,13 +40,14 @@ it('builds a spreadsheet editor definition for an eloquent model', function (): 
             'selectableRows' => true,
             'clipboard' => true,
             'dirtyCells' => true,
-            'mockSave' => false,
+            'mockSave' => true,
         ],
     ]);
 
-    expect($editor->toFrontendConfig())
-        ->toHaveKey('dataUrl')
-        ->toHaveKey('saveUrl');
+    $frontendConfig = $editor->toFrontendConfig();
+
+    expect(array_key_exists('dataUrl', $frontendConfig))->toBeFalse()
+        ->and(array_key_exists('saveUrl', $frontendConfig))->toBeFalse();
 
     $user = new class
     {

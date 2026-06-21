@@ -145,7 +145,7 @@ php artisan vendor:publish --tag=filament-spreadsheet-editor-assets
 
 The first frontend adapter uses Tabulator. It supports editable cells, selectable rows, clipboard copy/paste through Tabulator, text/number/integer/boolean/date column types, dirty-cell highlighting, and batch save events.
 
-When the component receives a raw configuration without a `saveUrl`, saving is mocked in the browser: dirty cells are cleared and `filament-spreadsheet-editor:saving` followed by `filament-spreadsheet-editor:saved` is dispatched. Editors built with `SpreadsheetEditor::make()` include the registered backend `saveUrl` and use the persistence endpoint instead.
+When the component receives a raw configuration without a `saveUrl`, saving is mocked in the browser: dirty cells are cleared and `filament-spreadsheet-editor:saving` followed by `filament-spreadsheet-editor:saved` is dispatched. Named editors resolved through `SpreadsheetEditorRegistry` include the backend `saveUrl` and use the persistence endpoint instead.
 
 ## Backend Data Loading
 
@@ -155,27 +155,41 @@ The package registers an authenticated JSON endpoint:
 GET /filament-spreadsheet-editor/editors/{token}/rows
 ```
 
-Spreadsheet editors are loaded through a server-side registry token. The request never chooses a model class directly.
+Spreadsheet editors are loaded through a server-side registry token. The request never chooses a model class directly. Define named editors during application boot so their callbacks can be rebuilt safely for every HTTP request:
 
 ```php
 use App\Models\Product;
+use Illuminate\Support\ServiceProvider;
 use Mivento\FilamentSpreadsheetEditor\SpreadsheetColumn;
 use Mivento\FilamentSpreadsheetEditor\SpreadsheetEditor;
 use Mivento\FilamentSpreadsheetEditor\Support\SpreadsheetEditorRegistry;
 
-$editor = SpreadsheetEditor::make()
-    ->model(Product::class)
-    ->columns([
-        SpreadsheetColumn::make('sku')->searchable(),
-        SpreadsheetColumn::make('name')->searchable()->editable(),
-        SpreadsheetColumn::make('price')->number()->editable(),
-        SpreadsheetColumn::make('stock')->integer()->editable(),
-    ])
-    ->query(fn ($query) => $query->where('active', true))
-    ->tenantQuery(fn ($query, $tenant) => $query->whereBelongsTo($tenant))
-    ->authorize(fn ($user) => $user->can('manage products'));
+class AppServiceProvider extends ServiceProvider
+{
+    public function boot(SpreadsheetEditorRegistry $editors): void
+    {
+        $editors->define('products', fn () => SpreadsheetEditor::make()
+            ->model(Product::class)
+            ->columns([
+                SpreadsheetColumn::make('sku')->searchable(),
+                SpreadsheetColumn::make('name')->searchable()->editable(),
+                SpreadsheetColumn::make('price')->number()->editable(),
+                SpreadsheetColumn::make('stock')->integer()->editable(),
+            ])
+            ->query(fn ($query) => $query->where('active', true))
+            ->tenantQuery(fn ($query, $tenant) => $query->whereBelongsTo($tenant))
+            ->authorize(fn ($user) => $user->can('manage products')));
+    }
+}
+```
 
-$token = app(SpreadsheetEditorRegistry::class)->register($editor, 'products');
+Resolve that editor in the Filament page:
+
+```php
+public function editor(): SpreadsheetEditor
+{
+    return app(SpreadsheetEditorRegistry::class)->editor('products');
+}
 ```
 
 The endpoint supports:
@@ -185,7 +199,7 @@ The endpoint supports:
 - `sort[field]` and `sort[direction]`
 - `filters[column_name]=value`
 
-The Blade component registers its editor and includes `dataUrl` in the frontend config automatically:
+The Blade component reuses the named editor token and includes `dataUrl` and `saveUrl` in the frontend config automatically. Editors that were not resolved from a named registry definition stay in local/mock mode and do not expose temporary backend URLs:
 
 ```blade
 <x-filament-spreadsheet-editor::spreadsheet-editor :editor="$this->editor()" />

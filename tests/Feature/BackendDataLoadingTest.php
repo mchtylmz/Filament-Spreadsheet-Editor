@@ -15,11 +15,14 @@ function registeredSpreadsheetEditor(bool $authorized = true): string
             SpreadsheetColumn::make('name')->searchable(),
             SpreadsheetColumn::make('price')->number(),
             SpreadsheetColumn::make('stock')->integer(),
-            SpreadsheetColumn::make('category'),
+            SpreadsheetColumn::make('category')->sortable(false),
         ])
         ->authorize(fn (?User $user): bool => $authorized && $user !== null);
 
-    return app(SpreadsheetEditorRegistry::class)->register($editor, $authorized ? 'products' : 'products-denied');
+    $key = $authorized ? 'products' : 'products-denied';
+    $registry = app(SpreadsheetEditorRegistry::class);
+
+    return $registry->define($key, fn (): SpreadsheetEditor => $editor);
 }
 
 function seedSpreadsheetProducts(): void
@@ -61,6 +64,14 @@ it('prevents unauthorized users from loading rows', function (): void {
         ->actingAs(new User())
         ->getJson(route('filament-spreadsheet-editor.rows.index', ['token' => $token]))
         ->assertForbidden();
+});
+
+it('requires an authenticated user to load rows', function (): void {
+    $token = registeredSpreadsheetEditor();
+
+    $this
+        ->getJson(route('filament-spreadsheet-editor.rows.index', ['token' => $token]))
+        ->assertUnauthorized();
 });
 
 it('allows authorized users to load paginated rows', function (): void {
@@ -116,6 +127,24 @@ it('sorts by configured columns', function (): void {
         ->assertJsonPath('data.2.name', 'Green Lamp');
 });
 
+it('ignores sorting for configured non-sortable columns', function (): void {
+    seedSpreadsheetProducts();
+
+    $token = registeredSpreadsheetEditor();
+
+    $this
+        ->actingAs(new User())
+        ->getJson(route('filament-spreadsheet-editor.rows.index', [
+            'token' => $token,
+            'sort' => [
+                'field' => 'category',
+                'direction' => 'desc',
+            ],
+        ]))
+        ->assertOk()
+        ->assertJsonPath('data.0.sku', 'SKU-001');
+});
+
 it('filters by configured columns', function (): void {
     seedSpreadsheetProducts();
 
@@ -151,4 +180,35 @@ it('returns only configured columns', function (): void {
         'stock',
         'category',
     ]);
+});
+
+it('rebuilds named editors from the same token on a fresh request registry', function (): void {
+    $firstRegistry = new SpreadsheetEditorRegistry();
+    $secondRegistry = new SpreadsheetEditorRegistry();
+    $resolver = fn (): SpreadsheetEditor => SpreadsheetEditor::make()
+        ->model(Product::class)
+        ->columns([SpreadsheetColumn::make('name')]);
+
+    $firstToken = $firstRegistry->define('products', $resolver);
+    $secondToken = $secondRegistry->define('products', $resolver);
+    $resolvedEditor = $secondRegistry->editor('products');
+
+    expect($secondToken)->toBe($firstToken)
+        ->and($resolvedEditor->getModel())->toBe(Product::class)
+        ->and($secondRegistry->register($resolvedEditor))->toBe($firstToken);
+});
+
+it('exposes backend urls only for named registry editors', function (): void {
+    $registry = app(SpreadsheetEditorRegistry::class);
+    $token = $registry->define('products', fn (): SpreadsheetEditor => SpreadsheetEditor::make()
+        ->model(Product::class)
+        ->columns([SpreadsheetColumn::make('name')]));
+    $config = $registry->editor('products')->toFrontendConfig();
+
+    expect($config)
+        ->toMatchArray([
+            'token' => $token,
+            'features' => ['mockSave' => false],
+        ])
+        ->toHaveKeys(['dataUrl', 'saveUrl']);
 });
