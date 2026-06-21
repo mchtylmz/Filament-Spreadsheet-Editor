@@ -1,7 +1,7 @@
 import { TabulatorFull as Tabulator } from 'tabulator-tables';
 import { ChangeBuffer } from '../core/change-buffer.js';
 import { HistoryStack } from '../core/history-stack.js';
-import { attachRowIds } from '../core/rows.js';
+import { attachLocalRowIds, attachRowIds } from '../core/rows.js';
 import { rulesByField, validateCell } from '../core/validation.js';
 
 export class TabulatorSpreadsheetAdapter {
@@ -18,7 +18,7 @@ export class TabulatorSpreadsheetAdapter {
     mount() {
         this.table = new Tabulator(this.element, {
             ...this.remoteOptions(),
-            data: this.config.dataUrl ? undefined : (this.config.rows ?? []),
+            data: this.config.dataUrl ? undefined : attachLocalRowIds(this.config.rows),
             columns: this.columns(),
             layout: 'fitColumns',
             reactiveData: true,
