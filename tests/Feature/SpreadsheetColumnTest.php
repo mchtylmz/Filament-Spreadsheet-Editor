@@ -51,3 +51,15 @@ it('keeps columns read only until editable is enabled', function (): void {
         ->and($column->toGridColumn()['editor'])->toBeFalse()
         ->and($column->getRules())->toBe(['required', 'unique']);
 });
+
+it('replaces the opposite presence rule when required is toggled', function (): void {
+    $column = SpreadsheetColumn::make('name')
+        ->required()
+        ->required(false);
+
+    expect($column->getRules())->toBe(['nullable']);
+
+    $column->required();
+
+    expect($column->getRules())->toBe(['required']);
+});

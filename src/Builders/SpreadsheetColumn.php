@@ -71,6 +71,8 @@ class SpreadsheetColumn implements Arrayable
 
     public function required(bool $condition = true): static
     {
+        $this->removeRule($condition ? 'nullable' : 'required');
+
         return $this->rule($condition ? 'required' : 'nullable');
     }
 
@@ -158,6 +160,14 @@ class SpreadsheetColumn implements Arrayable
         }
 
         return $this;
+    }
+
+    protected function removeRule(string $rule): void
+    {
+        $this->rules = array_values(array_filter(
+            $this->rules,
+            fn (string $existingRule): bool => $existingRule !== $rule,
+        ));
     }
 
     public function getName(): string
