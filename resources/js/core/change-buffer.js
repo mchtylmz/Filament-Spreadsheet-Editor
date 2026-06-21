@@ -19,7 +19,7 @@ export class ChangeBuffer {
             this.changes.set(key, { rowId, field, value, oldValue: originalValue });
         }
 
-        this.notify();
+        this.notify({ rowId, field });
     }
 
     clear() {
@@ -29,7 +29,7 @@ export class ChangeBuffer {
 
     remove(rowId, field) {
         this.changes.delete(this.key(rowId, field));
-        this.notify();
+        this.notify({ rowId, field });
     }
 
     hasChanges() {
@@ -54,11 +54,12 @@ export class ChangeBuffer {
         return () => this.listeners.delete(listener);
     }
 
-    notify() {
+    notify(lastChanged = null) {
         const payload = {
             hasChanges: this.hasChanges(),
             changes: this.all(),
             dirtyRowCount: this.dirtyRowCount(),
+            lastChanged,
         };
 
         this.listeners.forEach((listener) => listener(payload));

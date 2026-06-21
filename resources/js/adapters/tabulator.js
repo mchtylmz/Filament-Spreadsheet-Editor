@@ -109,6 +109,7 @@ export class TabulatorSpreadsheetAdapter {
 
         this.buffer.set(rowId, field, value, oldValue);
         this.syncCellState(cell, rowId, field);
+        this.clearCellResult(cell);
     }
 
     validateCell(cell, column) {

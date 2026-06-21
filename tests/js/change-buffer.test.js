@@ -34,3 +34,17 @@ test('preserves the original value across repeated edits', () => {
     assert.equal(buffer.hasChanges(), false);
     assert.equal(buffer.has(1, 'price'), false);
 });
+
+test('reports the last changed cell to subscribers', () => {
+    const buffer = new ChangeBuffer();
+    const notifications = [];
+
+    buffer.onChange((state) => notifications.push(state.lastChanged));
+    buffer.set(7, 'stock', 5, 4);
+    buffer.remove(7, 'stock');
+
+    assert.deepEqual(notifications, [
+        { rowId: 7, field: 'stock' },
+        { rowId: 7, field: 'stock' },
+    ]);
+});

@@ -31,12 +31,20 @@ window.filamentSpreadsheetEditor = function filamentSpreadsheetEditor(config = {
                 dirtyRowCount,
                 canUndo,
                 canRedo,
+                lastChanged,
             }) => {
                 this.hasChanges = hasChanges;
                 this.pendingChanges = changes;
                 this.dirtyRowCount = dirtyRowCount;
                 this.canUndo = canUndo;
                 this.canRedo = canRedo;
+
+                if (lastChanged) {
+                    this.saveResults = this.saveResults.filter((result) => (
+                        String(result.id) !== String(lastChanged.rowId)
+                        || result.field !== lastChanged.field
+                    ));
+                }
             });
 
             this.activationHandler = () => {
