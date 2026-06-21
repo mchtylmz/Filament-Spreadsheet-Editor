@@ -47,11 +47,15 @@ class LoadSpreadsheetRows
         $page = max(1, (int) $request->integer('page', 1));
 
         $paginator = $query->paginate($perPage, ['*'], 'page', $page);
+        $records = $paginator->getCollection();
 
         return [
-            'data' => $paginator
-                ->getCollection()
+            'data' => $records
                 ->map(fn ($model): array => collect($model->only($fields))->all())
+                ->values()
+                ->all(),
+            'row_ids' => $records
+                ->map(fn ($model): mixed => $model->getKey())
                 ->values()
                 ->all(),
             'meta' => [

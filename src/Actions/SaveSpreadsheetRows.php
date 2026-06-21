@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Mivento\FilamentSpreadsheetEditor\Builders\SpreadsheetColumn;
 use Mivento\FilamentSpreadsheetEditor\Builders\SpreadsheetEditor;
 use Mivento\FilamentSpreadsheetEditor\Events\SpreadsheetBatchUpdated;
@@ -26,13 +27,17 @@ class SaveSpreadsheetRows
         abort_unless(is_array($changes), 422, 'Spreadsheet changes must be an array.');
 
         if (! $editor->isAuthorized($user)) {
-            return [
-                'has_errors' => true,
-                'results' => array_map(
-                    fn (array $change): array => $this->result($change, 'forbidden'),
-                    array_filter($changes, 'is_array'),
-                ),
-            ];
+            $results = [];
+
+            foreach ($changes as $index => $change) {
+                $results[$index] = is_array($change)
+                    ? $this->result($change, 'forbidden')
+                    : $this->result([], 'validation_error', [
+                        'errors' => ['Each spreadsheet change must be an object.'],
+                    ]);
+            }
+
+            return $this->response($results, hasErrors: true);
         }
 
         $model = $editor->getModel();
@@ -45,9 +50,14 @@ class SaveSpreadsheetRows
 
         $prepared = [];
         $results = [];
+        $seenCells = [];
 
-        foreach ($changes as $change) {
+        foreach ($changes as $index => $change) {
             if (! is_array($change)) {
+                $results[$index] = $this->result([], 'validation_error', [
+                    'errors' => ['Each spreadsheet change must be an object.'],
+                ]);
+
                 continue;
             }
 
@@ -55,17 +65,29 @@ class SaveSpreadsheetRows
             $id = $change['id'] ?? null;
 
             if (! is_string($field) || ! $editableColumns->has($field)) {
-                $results[] = $this->result($change, 'forbidden');
+                $results[$index] = $this->result($change, 'forbidden');
 
                 continue;
             }
+
+            $cellKey = (string) $id . ':' . $field;
+
+            if (isset($seenCells[$cellKey])) {
+                $results[$index] = $this->result($change, 'validation_error', [
+                    'errors' => ['A cell may only appear once in a batch.'],
+                ]);
+
+                continue;
+            }
+
+            $seenCells[$cellKey] = true;
 
             /** @var SpreadsheetColumn $column */
             $column = $editableColumns->get($field);
             $record = $this->findRecord($editor, $model, $id);
 
             if (! $record instanceof Model) {
-                $results[] = $this->result($change, 'conflict', ['message' => 'Record was not found.']);
+                $results[$index] = $this->result($change, 'conflict', ['message' => 'Record was not found.']);
 
                 continue;
             }
@@ -74,7 +96,7 @@ class SaveSpreadsheetRows
             $oldValue = $change['old'] ?? null;
 
             if (! $this->valuesMatch($currentValue, $oldValue)) {
-                $results[] = $this->result($change, 'conflict', [
+                $results[$index] = $this->result($change, 'conflict', [
                     'current' => $currentValue,
                 ]);
 
@@ -85,16 +107,16 @@ class SaveSpreadsheetRows
             $validator = Validator::make([$field => $change['value'] ?? null], [$field => $rules]);
 
             if ($validator->fails()) {
-                $results[] = $this->result($change, 'validation_error', [
+                $results[$index] = $this->result($change, 'validation_error', [
                     'errors' => $validator->errors()->get($field),
                 ]);
 
                 continue;
             }
 
-            $prepared[] = [
+            $prepared[$index] = [
                 'change' => $change,
-                'record' => $record,
+                'id' => $record->getKey(),
                 'field' => $field,
                 'old' => $oldValue,
                 'value' => $change['value'] ?? null,
@@ -102,19 +124,52 @@ class SaveSpreadsheetRows
         }
 
         if ($this->hasErrors($results)) {
-            return [
-                'has_errors' => true,
-                'results' => array_merge($results, array_map(
-                    fn (array $item): array => $this->result($item['change'], 'success', ['committed' => false]),
-                    $prepared,
-                )),
-            ];
+            foreach ($prepared as $index => $item) {
+                $results[$index] = $this->result($item['change'], 'success', ['committed' => false]);
+            }
+
+            return $this->response($results, hasErrors: true);
         }
 
-        DB::transaction(function () use ($editor, $prepared, &$results): void {
-            foreach ($prepared as $item) {
+        return DB::transaction(function () use ($editor, $model, $prepared): array {
+            $results = [];
+            $lockedRecords = $this->lockRecords($editor, $model, $prepared);
+
+            foreach ($prepared as $index => $item) {
+                $record = $lockedRecords[(string) $item['id']] ?? null;
+
+                if (! $record instanceof Model) {
+                    $results[$index] = $this->result($item['change'], 'conflict', [
+                        'message' => 'Record was not found.',
+                    ]);
+
+                    continue;
+                }
+
+                $currentValue = $record->getAttribute($item['field']);
+
+                if (! $this->valuesMatch($currentValue, $item['old'])) {
+                    $results[$index] = $this->result($item['change'], 'conflict', [
+                        'current' => $currentValue,
+                    ]);
+                }
+            }
+
+            if ($this->hasErrors($results)) {
+                foreach ($prepared as $index => $item) {
+                    $results[$index] ??= $this->result(
+                        $item['change'],
+                        'success',
+                        ['committed' => false],
+                    );
+                }
+
+                return $this->response($results, hasErrors: true);
+            }
+
+            foreach ($prepared as $index => $item) {
                 /** @var Model $record */
-                $record = $item['record'];
+                $record = $lockedRecords[(string) $item['id']];
 
                 event(new SpreadsheetCellUpdating(
                     $editor,
@@ -135,22 +190,29 @@ class SaveSpreadsheetRows
                     $item['value'],
                 ));
 
-                $results[] = $this->result($item['change'], 'success', ['committed' => true]);
+                $results[$index] = $this->result($item['change'], 'success', ['committed' => true]);
             }
 
-            event(new SpreadsheetBatchUpdated($editor, $results));
-        });
+            $orderedResults = $this->orderedResults($results);
 
-        return [
-            'has_errors' => false,
-            'results' => $results,
-        ];
+            event(new SpreadsheetBatchUpdated($editor, $orderedResults));
+
+            return [
+                'has_errors' => false,
+                'results' => $orderedResults,
+            ];
+        });
     }
 
     /**
      * @param  class-string<Model>  $model
      */
-    protected function findRecord(SpreadsheetEditor $editor, string $model, mixed $id): ?Model
+    protected function findRecord(
+        SpreadsheetEditor $editor,
+        string $model,
+        mixed $id,
+        bool $lockForUpdate = false,
+    ): ?Model
     {
         if ($id === null || $id === '') {
             return null;
@@ -161,16 +223,44 @@ class SaveSpreadsheetRows
         $query = $editor->applyQuery($query);
         $query = $editor->applyTenantQuery($query, $this->currentFilamentTenant());
 
+        if ($lockForUpdate) {
+            $query->lockForUpdate();
+        }
+
         return $query->whereKey($id)->first();
     }
 
     /**
-     * @return array<int, string>
+     * @param  array<int, array<string, mixed>>  $prepared
+     * @return array<string, Model>
+     */
+    protected function lockRecords(SpreadsheetEditor $editor, string $model, array $prepared): array
+    {
+        $ids = collect($prepared)
+            ->pluck('id')
+            ->uniqueStrict()
+            ->sortBy(fn (mixed $id): string => (string) $id, SORT_NATURAL)
+            ->values();
+        $records = [];
+
+        foreach ($ids as $id) {
+            $record = $this->findRecord($editor, $model, $id, lockForUpdate: true);
+
+            if ($record instanceof Model) {
+                $records[(string) $id] = $record;
+            }
+        }
+
+        return $records;
+    }
+
+    /**
+     * @return array<int, mixed>
      */
     protected function rulesForColumn(SpreadsheetEditor $editor, SpreadsheetColumn $column, Model $record): array
     {
-        return array_map(function (string $rule) use ($column, $editor, $record): string {
-            if ($rule !== 'unique') {
+        return array_map(function (string $rule) use ($column, $editor, $record): mixed {
+            if ($rule !== 'unique' && ! str_starts_with($rule, 'unique:')) {
                 return $rule;
             }
 
@@ -180,14 +270,24 @@ class SaveSpreadsheetRows
                 return $rule;
             }
 
+            $parameters = $rule === 'unique'
+                ? []
+                : str_getcsv(substr($rule, strlen('unique:')));
             $modelInstance = new $model();
+            $table = $parameters[0] ?? $modelInstance->getTable();
+            $field = $parameters[1] ?? $column->getName();
 
-            return 'unique:' . $modelInstance->getTable() . ',' . $column->getName() . ',' . $record->getKey();
+            return Rule::unique($table, $field)
+                ->ignore($record->getKey(), $record->getKeyName());
         }, $column->getRules());
     }
 
     protected function valuesMatch(mixed $currentValue, mixed $oldValue): bool
     {
+        if ($currentValue === null || $oldValue === null) {
+            return $currentValue === null && $oldValue === null;
+        }
+
         if (is_numeric($currentValue) && is_numeric($oldValue)) {
             return (float) $currentValue === (float) $oldValue;
         }
@@ -203,6 +303,29 @@ class SaveSpreadsheetRows
         return collect($results)->contains(
             fn (array $result): bool => $result['status'] !== 'success',
         );
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $results
+     * @return array<string, mixed>
+     */
+    protected function response(array $results, bool $hasErrors): array
+    {
+        return [
+            'has_errors' => $hasErrors,
+            'results' => $this->orderedResults($results),
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $results
+     * @return array<int, array<string, mixed>>
+     */
+    protected function orderedResults(array $results): array
+    {
+        ksort($results);
+
+        return array_values($results);
     }
 
     /**

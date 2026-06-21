@@ -15,3 +15,4 @@ All notable changes to `mivento/filament-spreadsheet-editor` will be documented 
 - Added batch cell saving with validation, optimistic locking, transactions, events, and frontend per-cell error rendering.
 - Restored mock frontend save events for editor configurations without a persistence endpoint.
 - Added request-safe named editor resolvers and request-scoped registry binding for backend row loading.
+- Hardened batch saving with locked optimistic checks, stable row identifiers, ordered results, and persistent frontend error states.

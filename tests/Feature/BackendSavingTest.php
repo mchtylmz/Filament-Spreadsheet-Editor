@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Event;
+use Mivento\FilamentSpreadsheetEditor\Actions\SaveSpreadsheetRows;
 use Mivento\FilamentSpreadsheetEditor\Events\SpreadsheetBatchUpdated;
 use Mivento\FilamentSpreadsheetEditor\Events\SpreadsheetCellUpdated;
 use Mivento\FilamentSpreadsheetEditor\Events\SpreadsheetCellUpdating;
@@ -22,7 +23,10 @@ function registeredSaveSpreadsheetEditor(bool $authorized = true): string
         ])
         ->authorize(fn (?User $user): bool => $authorized && $user !== null);
 
-    return app(SpreadsheetEditorRegistry::class)->register($editor, $authorized ? 'save-products' : 'save-products-denied');
+    $key = $authorized ? 'save-products' : 'save-products-denied';
+
+    return app(SpreadsheetEditorRegistry::class)
+        ->define($key, fn (): SpreadsheetEditor => $editor);
 }
 
 function seedSaveProduct(): Product
@@ -107,6 +111,47 @@ it('forbids saving non editable configured columns', function (): void {
     expect($product->refresh()->sku)->toBe('SKU-SAVE');
 });
 
+it('forbids every cell when the editor authorization callback denies saving', function (): void {
+    $product = seedSaveProduct();
+    $token = registeredSaveSpreadsheetEditor(authorized: false);
+
+    $this
+        ->actingAs(new User())
+        ->postJson(route('filament-spreadsheet-editor.rows.update', ['token' => $token]), [
+            'changes' => [
+                ['id' => $product->id, 'field' => 'price', 'old' => '10.00', 'value' => '12.50'],
+                ['id' => $product->id, 'field' => 'stock', 'old' => 4, 'value' => 5],
+            ],
+        ])
+        ->assertOk()
+        ->assertJsonPath('has_errors', true)
+        ->assertJsonPath('results.0.status', 'forbidden')
+        ->assertJsonPath('results.1.status', 'forbidden');
+
+    expect($product->refresh()->price)->toEqual(10)
+        ->and($product->stock)->toBe(4);
+});
+
+it('preserves input order when one cell prevents the batch commit', function (): void {
+    $product = seedSaveProduct();
+    $token = registeredSaveSpreadsheetEditor();
+
+    $this
+        ->actingAs(new User())
+        ->postJson(route('filament-spreadsheet-editor.rows.update', ['token' => $token]), [
+            'changes' => [
+                ['id' => $product->id, 'field' => 'stock', 'old' => 4, 'value' => 5],
+                ['id' => $product->id, 'field' => 'price', 'old' => '10.00', 'value' => -1],
+            ],
+        ])
+        ->assertOk()
+        ->assertJsonPath('results.0.field', 'stock')
+        ->assertJsonPath('results.0.status', 'success')
+        ->assertJsonPath('results.0.committed', false)
+        ->assertJsonPath('results.1.field', 'price')
+        ->assertJsonPath('results.1.status', 'validation_error');
+});
+
 it('detects optimistic locking conflicts', function (): void {
     $product = seedSaveProduct();
     $token = registeredSaveSpreadsheetEditor();
@@ -125,6 +170,41 @@ it('detects optimistic locking conflicts', function (): void {
         ->assertJsonPath('results.0.status', 'conflict');
 
     expect($product->refresh()->price)->toEqual(11);
+});
+
+it('rechecks optimistic locking after records are locked in the transaction', function (): void {
+    $product = seedSaveProduct();
+    $token = registeredSaveSpreadsheetEditor();
+
+    app()->bind(SaveSpreadsheetRows::class, fn (): SaveSpreadsheetRows => new class extends SaveSpreadsheetRows
+    {
+        protected function lockRecords(SpreadsheetEditor $editor, string $model, array $prepared): array
+        {
+            Product::query()
+                ->whereKey($prepared[0]['id'])
+                ->update(['price' => 11]);
+
+            return parent::lockRecords($editor, $model, $prepared);
+        }
+    });
+
+    $this
+        ->actingAs(new User())
+        ->postJson(route('filament-spreadsheet-editor.rows.update', ['token' => $token]), [
+            'changes' => [
+                ['id' => $product->id, 'field' => 'price', 'old' => '10.00', 'value' => '12.50'],
+                ['id' => $product->id, 'field' => 'stock', 'old' => 4, 'value' => 5],
+            ],
+        ])
+        ->assertOk()
+        ->assertJsonPath('has_errors', true)
+        ->assertJsonPath('results.0.status', 'conflict')
+        ->assertJsonPath('results.0.current', 11)
+        ->assertJsonPath('results.1.status', 'success')
+        ->assertJsonPath('results.1.committed', false);
+
+    expect($product->refresh()->price)->toEqual(11)
+        ->and($product->stock)->toBe(4);
 });
 
 it('rolls back the batch when an update event fails', function (): void {

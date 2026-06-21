@@ -88,7 +88,8 @@ it('allows authorized users to load paginated rows', function (): void {
         ->assertOk()
         ->assertJsonPath('meta.total', 3)
         ->assertJsonPath('meta.per_page', 2)
-        ->assertJsonCount(2, 'data');
+        ->assertJsonCount(2, 'data')
+        ->assertJsonCount(2, 'row_ids');
 });
 
 it('searches across configured searchable columns', function (): void {

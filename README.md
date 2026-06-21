@@ -206,6 +206,7 @@ The Blade component reuses the named editor token and includes `dataUrl` and `sa
 ```
 
 Only configured columns are searchable, sortable, filterable, and returned in row payloads.
+Model keys are transported separately in the `row_ids` response field so the frontend can build save payloads without exposing unconfigured model attributes.
 
 ## Saving Changes
 
@@ -226,11 +227,11 @@ Payload:
 }
 ```
 
-The save action validates that each field is editable, applies Laravel validation rules from `SpreadsheetColumn`, checks optimistic locking against the `old` value, runs inside a transaction, and returns per-cell statuses:
+The save action validates that each field is editable, applies Laravel validation rules from `SpreadsheetColumn`, and checks optimistic locking against the `old` value again under a database row lock. Batches are atomic: if one cell fails validation or conflicts, valid sibling cells return `success` with `committed: false` and no writes are persisted.
 
 - `success`
 - `validation_error`
 - `conflict`
 - `forbidden`
 
-The package dispatches `SpreadsheetCellUpdating`, `SpreadsheetCellUpdated`, and `SpreadsheetBatchUpdated` events during committed saves.
+The package dispatches `SpreadsheetCellUpdating`, `SpreadsheetCellUpdated`, and `SpreadsheetBatchUpdated` events during committed saves. The frontend preserves the first `old` value across repeated edits and renders validation/conflict details on the affected cell.

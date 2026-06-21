@@ -10,11 +10,13 @@ export class ChangeBuffer {
 
     set(rowId, field, value, oldValue) {
         const key = this.key(rowId, field);
+        const existing = this.changes.get(key);
+        const originalValue = existing?.oldValue ?? oldValue;
 
-        if (value === oldValue) {
+        if (value === originalValue) {
             this.changes.delete(key);
         } else {
-            this.changes.set(key, { rowId, field, value, oldValue });
+            this.changes.set(key, { rowId, field, value, oldValue: originalValue });
         }
 
         this.notify();
@@ -27,6 +29,10 @@ export class ChangeBuffer {
 
     hasChanges() {
         return this.changes.size > 0;
+    }
+
+    has(rowId, field) {
+        return this.changes.has(this.key(rowId, field));
     }
 
     all() {
