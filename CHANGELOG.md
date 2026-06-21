@@ -16,3 +16,4 @@ All notable changes to `mivento/filament-spreadsheet-editor` will be documented 
 - Restored mock frontend save events for editor configurations without a persistence endpoint.
 - Added request-safe named editor resolvers and request-scoped registry binding for backend row loading.
 - Hardened batch saving with locked optimistic checks, stable row identifiers, ordered results, and persistent frontend error states.
+- Added undo/redo, pending changes, save/discard actions, conflict recovery, keyboard shortcuts, and light/dark editing states.

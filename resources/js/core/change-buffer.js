@@ -27,8 +27,17 @@ export class ChangeBuffer {
         this.notify();
     }
 
+    remove(rowId, field) {
+        this.changes.delete(this.key(rowId, field));
+        this.notify();
+    }
+
     hasChanges() {
         return this.changes.size > 0;
+    }
+
+    dirtyRowCount() {
+        return new Set(this.all().map((change) => change.rowId)).size;
     }
 
     has(rowId, field) {
@@ -49,6 +58,7 @@ export class ChangeBuffer {
         const payload = {
             hasChanges: this.hasChanges(),
             changes: this.all(),
+            dirtyRowCount: this.dirtyRowCount(),
         };
 
         this.listeners.forEach((listener) => listener(payload));

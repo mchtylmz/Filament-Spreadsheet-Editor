@@ -235,3 +235,17 @@ The save action validates that each field is editable, applies Laravel validatio
 - `forbidden`
 
 The package dispatches `SpreadsheetCellUpdating`, `SpreadsheetCellUpdated`, and `SpreadsheetBatchUpdated` events during committed saves. The frontend preserves the first `old` value across repeated edits and renders validation/conflict details on the affected cell.
+
+## Editing Experience
+
+The Tabulator editor includes:
+
+- undo and redo history
+- a pending changes panel with dirty row count
+- save all and discard all actions
+- per-cell validation and conflict messages
+- conflict recovery using the server's current cell value
+- unsaved-change protection before leaving the page
+- `Ctrl/Cmd+S` to save, `Ctrl/Cmd+Z` to undo, and `Ctrl/Cmd+Shift+Z` to redo
+
+Toolbar, grid, dirty, validation, and conflict states adapt to Filament light and dark modes.

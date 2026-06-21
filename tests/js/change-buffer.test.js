@@ -6,12 +6,16 @@ test('tracks and clears dirty cell changes', () => {
     const buffer = new ChangeBuffer();
 
     buffer.set(1, 'price', 12, 10);
+    buffer.set(2, 'stock', 5, 4);
 
     assert.equal(buffer.hasChanges(), true);
+    assert.equal(buffer.dirtyRowCount(), 2);
     assert.deepEqual(buffer.all(), [
         { rowId: 1, field: 'price', value: 12, oldValue: 10 },
+        { rowId: 2, field: 'stock', value: 5, oldValue: 4 },
     ]);
 
+    buffer.remove(2, 'stock');
     buffer.set(1, 'price', 10, 10);
     assert.equal(buffer.hasChanges(), false);
 });

@@ -1,5 +1,6 @@
 import { TabulatorFull as Tabulator } from 'tabulator-tables';
 import { ChangeBuffer } from '../core/change-buffer.js';
+import { HistoryStack } from '../core/history-stack.js';
 import { attachRowIds } from '../core/rows.js';
 import { rulesByField, validateCell } from '../core/validation.js';
 
@@ -8,8 +9,10 @@ export class TabulatorSpreadsheetAdapter {
         this.element = element;
         this.config = config;
         this.buffer = new ChangeBuffer();
+        this.history = new HistoryStack(config.historyLimit ?? 100);
         this.rules = rulesByField(config.validationRules ?? []);
         this.table = null;
+        this.replayingHistory = false;
     }
 
     mount() {
@@ -92,14 +95,20 @@ export class TabulatorSpreadsheetAdapter {
         const rowData = row.getData();
         const rowId = rowData.id ?? row.getPosition();
         const field = cell.getField();
+        const value = cell.getValue();
+        const oldValue = cell.getOldValue();
 
-        this.buffer.set(rowId, field, cell.getValue(), cell.getOldValue());
+        if (!this.replayingHistory && value !== oldValue) {
+            this.history.push({
+                rowId,
+                field,
+                before: oldValue,
+                after: value,
+            });
+        }
 
-        const element = cell.getElement();
-        element.classList.toggle(
-            'filament-spreadsheet-editor__cell--dirty',
-            this.buffer.has(rowId, field),
-        );
+        this.buffer.set(rowId, field, value, oldValue);
+        this.syncCellState(cell, rowId, field);
     }
 
     validateCell(cell, column) {
@@ -112,7 +121,11 @@ export class TabulatorSpreadsheetAdapter {
     }
 
     onChange(listener) {
-        return this.buffer.onChange(listener);
+        return this.buffer.onChange((state) => listener({
+            ...state,
+            canUndo: this.history.canUndo(),
+            canRedo: this.history.canRedo(),
+        }));
     }
 
     changes() {
@@ -124,7 +137,68 @@ export class TabulatorSpreadsheetAdapter {
         }));
     }
 
+    undo() {
+        const action = this.history.undo();
+
+        if (!action) {
+            return;
+        }
+
+        this.applyHistoryAction(action, action.before);
+    }
+
+    redo() {
+        const action = this.history.redo();
+
+        if (!action) {
+            return;
+        }
+
+        this.applyHistoryAction(action, action.after);
+    }
+
+    discardAll() {
+        const changes = this.buffer.all();
+
+        this.replayingHistory = true;
+
+        changes.forEach((change) => {
+            const cell = this.cellFor(change.rowId, change.field);
+
+            cell?.setValue(change.oldValue);
+        });
+
+        this.replayingHistory = false;
+        this.clearChanges();
+    }
+
+    reloadCell(result) {
+        if (result.status !== 'conflict' || !Object.hasOwn(result, 'current')) {
+            return;
+        }
+
+        const cell = this.cellFor(result.id, result.field);
+
+        if (!cell) {
+            this.history.remove(result.id, result.field);
+            this.buffer.remove(result.id, result.field);
+
+            return;
+        }
+
+        this.replayingHistory = true;
+        cell.setValue(result.current);
+        this.replayingHistory = false;
+        this.history.remove(result.id, result.field);
+        this.buffer.remove(result.id, result.field);
+        this.syncCellState(cell, result.id, result.field);
+        cell.getElement().classList.remove('filament-spreadsheet-editor__cell--invalid');
+        delete cell.getElement().dataset.validationErrors;
+        this.clearCellResult(cell);
+    }
+
     clearChanges(clearResults = true) {
+        this.history.clear();
         this.buffer.clear();
 
         this.element
@@ -165,6 +239,27 @@ export class TabulatorSpreadsheetAdapter {
         }
     }
 
+    applyHistoryAction(action, value) {
+        const cell = this.cellFor(action.rowId, action.field);
+
+        if (!cell) {
+            this.buffer.set(action.rowId, action.field, value, action.before);
+
+            return;
+        }
+
+        this.replayingHistory = true;
+        cell.setValue(value);
+        this.replayingHistory = false;
+    }
+
+    syncCellState(cell, rowId, field) {
+        cell.getElement().classList.toggle(
+            'filament-spreadsheet-editor__cell--dirty',
+            this.buffer.has(rowId, field),
+        );
+    }
+
     cellFor(rowId, field) {
         const row = this.table?.getRow(rowId);
 
@@ -186,17 +281,21 @@ export class TabulatorSpreadsheetAdapter {
                 '.filament-spreadsheet-editor__cell--error',
                 '.filament-spreadsheet-editor__cell--conflict',
             ].join(','))
-            .forEach((cell) => {
-                cell.classList.remove(
-                    'filament-spreadsheet-editor__cell--saved',
-                    'filament-spreadsheet-editor__cell--error',
-                    'filament-spreadsheet-editor__cell--conflict',
-                );
-                delete cell.dataset.saveStatus;
-                delete cell.dataset.saveErrors;
-                cell.removeAttribute('aria-invalid');
-                cell.removeAttribute('title');
-            });
+            .forEach((cell) => this.clearCellResult({ getElement: () => cell }));
+    }
+
+    clearCellResult(cell) {
+        const element = cell.getElement();
+
+        element.classList.remove(
+            'filament-spreadsheet-editor__cell--saved',
+            'filament-spreadsheet-editor__cell--error',
+            'filament-spreadsheet-editor__cell--conflict',
+        );
+        delete element.dataset.saveStatus;
+        delete element.dataset.saveErrors;
+        element.removeAttribute('aria-invalid');
+        element.removeAttribute('title');
     }
 
     destroy() {
