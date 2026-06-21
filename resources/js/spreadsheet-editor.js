@@ -1,4 +1,5 @@
 import { TabulatorSpreadsheetAdapter } from './adapters/tabulator.js';
+import { saveChanges } from './core/save.js';
 
 window.filamentSpreadsheetEditor = function filamentSpreadsheetEditor(config = {}) {
     return {
@@ -28,19 +29,17 @@ window.filamentSpreadsheetEditor = function filamentSpreadsheetEditor(config = {
             this.$dispatch('filament-spreadsheet-editor:saving', { changes });
 
             try {
-                const response = await window.fetch(config.saveUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
-                    },
-                    body: JSON.stringify({ changes }),
+                const payload = await saveChanges(config, changes, {
+                    fetcher: window.fetch.bind(window),
+                    csrfToken: document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
                 });
 
-                const payload = await response.json();
+                if (payload.mocked) {
+                    this.adapter.clearChanges();
+                } else {
+                    this.adapter.applySaveResults(payload.results ?? []);
+                }
 
-                this.adapter.applySaveResults(payload.results ?? []);
                 this.hasChanges = this.adapter.buffer.hasChanges();
                 this.saving = false;
                 this.$dispatch('filament-spreadsheet-editor:saved', { changes, response: payload });

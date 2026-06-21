@@ -145,6 +145,8 @@ php artisan vendor:publish --tag=filament-spreadsheet-editor-assets
 
 The first frontend adapter uses Tabulator. It supports editable cells, selectable rows, clipboard copy/paste through Tabulator, text/number/integer/boolean/date column types, dirty-cell highlighting, and batch save events.
 
+When the component receives a raw configuration without a `saveUrl`, saving is mocked in the browser: dirty cells are cleared and `filament-spreadsheet-editor:saving` followed by `filament-spreadsheet-editor:saved` is dispatched. Editors built with `SpreadsheetEditor::make()` include the registered backend `saveUrl` and use the persistence endpoint instead.
+
 ## Backend Data Loading
 
 The package registers an authenticated JSON endpoint:
