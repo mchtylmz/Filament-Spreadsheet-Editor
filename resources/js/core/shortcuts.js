@@ -15,3 +15,8 @@ export function spreadsheetShortcut(event) {
 
     return null;
 }
+
+export function isTextEntryTarget(target) {
+    return typeof target?.matches === 'function'
+        && target.matches('input, textarea, select, [contenteditable="true"]');
+}

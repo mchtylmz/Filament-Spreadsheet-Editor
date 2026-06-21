@@ -1,6 +1,6 @@
 import { TabulatorSpreadsheetAdapter } from './adapters/tabulator.js';
 import { saveChanges } from './core/save.js';
-import { spreadsheetShortcut } from './core/shortcuts.js';
+import { isTextEntryTarget, spreadsheetShortcut } from './core/shortcuts.js';
 
 window.filamentSpreadsheetEditor = function filamentSpreadsheetEditor(config = {}) {
     return {
@@ -190,17 +190,21 @@ window.filamentSpreadsheetEditor = function filamentSpreadsheetEditor(config = {
             }
 
             const target = event.target;
-            const isExternalInput = target instanceof Element
-                && target.matches('input, textarea, select, [contenteditable="true"]')
-                && !this.rootElement?.contains(target);
-
-            if (isExternalInput) {
-                return;
-            }
-
             const action = spreadsheetShortcut(event);
 
             if (!action) {
+                return;
+            }
+
+            if (isTextEntryTarget(target)) {
+                if (action !== 'save' || !this.rootElement?.contains(target)) {
+                    return;
+                }
+
+                event.preventDefault();
+                target.blur();
+                queueMicrotask(() => this.saveAll());
+
                 return;
             }
 
