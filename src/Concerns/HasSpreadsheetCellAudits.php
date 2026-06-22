@@ -7,6 +7,9 @@ use Mivento\FilamentSpreadsheetEditor\Models\SpreadsheetCellAudit;
 
 trait HasSpreadsheetCellAudits
 {
+    /**
+     * @return MorphMany<SpreadsheetCellAudit, $this>
+     */
     public function spreadsheetCellAudits(): MorphMany
     {
         return $this->morphMany(SpreadsheetCellAudit::class, 'model');

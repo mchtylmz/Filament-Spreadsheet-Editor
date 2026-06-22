@@ -24,7 +24,7 @@ class SpreadsheetColumn implements Arrayable
     /** @var array<int, string> */
     protected array $rules = [];
 
-    protected function __construct(string $name)
+    final protected function __construct(string $name)
     {
         $this->name = $name;
     }

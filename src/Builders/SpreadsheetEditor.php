@@ -36,7 +36,7 @@ class SpreadsheetEditor implements Arrayable
     /** @var array<int, array<string, mixed>> */
     protected array $rows = [];
 
-    protected function __construct()
+    final protected function __construct()
     {
         //
     }
@@ -61,7 +61,7 @@ class SpreadsheetEditor implements Arrayable
     }
 
     /**
-     * @param  array<int, SpreadsheetColumn>  $columns
+     * @param  array<int, mixed>  $columns
      */
     public function columns(array $columns): static
     {
@@ -71,6 +71,7 @@ class SpreadsheetEditor implements Arrayable
             }
         }
 
+        /** @var array<int, SpreadsheetColumn> $columns */
         $this->columns = array_values($columns);
 
         return $this;
@@ -182,6 +183,12 @@ class SpreadsheetEditor implements Arrayable
         return $this->rows;
     }
 
+    /**
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $query
+     * @return Builder<TModel>
+     */
     public function applyQuery(Builder $query): Builder
     {
         if ($this->queryCallback === null) {
@@ -193,6 +200,12 @@ class SpreadsheetEditor implements Arrayable
         return $result instanceof Builder ? $result : $query;
     }
 
+    /**
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $query
+     * @return Builder<TModel>
+     */
     public function applyTenantQuery(Builder $query, mixed $tenant): Builder
     {
         if ($this->tenantQueryCallback === null || $tenant === null) {

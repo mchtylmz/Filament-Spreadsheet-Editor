@@ -12,7 +12,7 @@ class SpreadsheetEditorRegistry
     /** @var array<string, SpreadsheetEditor> */
     protected array $editors = [];
 
-    /** @var array<string, Closure(): SpreadsheetEditor> */
+    /** @var array<string, Closure(): mixed> */
     protected array $resolvers = [];
 
     /** @var array<string, string> */
@@ -46,7 +46,7 @@ class SpreadsheetEditorRegistry
      * Register a resolver during application boot so the editor can be rebuilt
      * for each HTTP request without serializing models or callbacks.
      *
-     * @param  Closure(): SpreadsheetEditor  $resolver
+     * @param  Closure(): mixed  $resolver
      */
     public function define(string $key, Closure $resolver): string
     {
