@@ -81,10 +81,10 @@ class SpreadsheetColumn implements Arrayable
         $rule = 'unique';
 
         if ($table !== null) {
-            $rule .= ':' . $table;
+            $rule .= ':'.$table;
 
             if ($column !== null) {
-                $rule .= ',' . $column;
+                $rule .= ','.$column;
             }
         }
 
@@ -133,12 +133,12 @@ class SpreadsheetColumn implements Arrayable
 
     public function min(int|float $value): static
     {
-        return $this->rule('min:' . $value);
+        return $this->rule('min:'.$value);
     }
 
     public function max(int|float $value): static
     {
-        return $this->rule('max:' . $value);
+        return $this->rule('max:'.$value);
     }
 
     public function rule(string $rule): static
