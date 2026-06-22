@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
+use Mivento\FilamentSpreadsheetEditor\Support\SpreadsheetEditorRegistry;
 
 /**
  * @implements Arrayable<string, mixed>
@@ -26,6 +27,8 @@ class SpreadsheetEditor implements Arrayable
 
     protected ?Closure $tenantQueryCallback = null;
 
+    protected ?string $importUniqueColumn = null;
+
     protected bool $selectableRows = true;
 
     protected bool $clipboard = true;
@@ -40,7 +43,7 @@ class SpreadsheetEditor implements Arrayable
 
     public static function make(): static
     {
-        return new static();
+        return new static;
     }
 
     /**
@@ -49,7 +52,7 @@ class SpreadsheetEditor implements Arrayable
     public function model(string $model): static
     {
         if (! is_subclass_of($model, Model::class)) {
-            throw new InvalidArgumentException("Spreadsheet editor model [{$model}] must extend " . Model::class . '.');
+            throw new InvalidArgumentException("Spreadsheet editor model [{$model}] must extend ".Model::class.'.');
         }
 
         $this->model = $model;
@@ -64,7 +67,7 @@ class SpreadsheetEditor implements Arrayable
     {
         foreach ($columns as $column) {
             if (! $column instanceof SpreadsheetColumn) {
-                throw new InvalidArgumentException('Spreadsheet editor columns must be instances of ' . SpreadsheetColumn::class . '.');
+                throw new InvalidArgumentException('Spreadsheet editor columns must be instances of '.SpreadsheetColumn::class.'.');
             }
         }
 
@@ -90,6 +93,13 @@ class SpreadsheetEditor implements Arrayable
     public function tenantQuery(Closure $callback): static
     {
         $this->tenantQueryCallback = $callback;
+
+        return $this;
+    }
+
+    public function importUniqueColumn(?string $column): static
+    {
+        $this->importUniqueColumn = $column;
 
         return $this;
     }
@@ -147,6 +157,11 @@ class SpreadsheetEditor implements Arrayable
     public function getTenantQueryCallback(): ?Closure
     {
         return $this->tenantQueryCallback;
+    }
+
+    public function getImportUniqueColumn(): ?string
+    {
+        return $this->importUniqueColumn;
     }
 
     public function hasSelectableRows(): bool
@@ -274,6 +289,7 @@ class SpreadsheetEditor implements Arrayable
             'hasQueryCallback' => $this->queryCallback !== null,
             'hasAuthorizationCallback' => $this->authorizationCallback !== null,
             'hasTenantQueryCallback' => $this->tenantQueryCallback !== null,
+            'importUniqueColumn' => $this->importUniqueColumn,
         ];
     }
 
@@ -283,7 +299,7 @@ class SpreadsheetEditor implements Arrayable
      */
     public function toFrontendConfig(?array $rows = null): array
     {
-        $registry = app(\Mivento\FilamentSpreadsheetEditor\Support\SpreadsheetEditorRegistry::class);
+        $registry = app(SpreadsheetEditorRegistry::class);
         $token = $registry->tokenForEditor($this);
 
         $config = [
@@ -296,6 +312,8 @@ class SpreadsheetEditor implements Arrayable
                 'clipboard' => $this->clipboard,
                 'dirtyCells' => true,
                 'mockSave' => $token === null,
+                'csvImport' => $token !== null && (bool) config('filament-spreadsheet-editor.csv_import_enabled', false),
+                'csvExport' => $token !== null && (bool) config('filament-spreadsheet-editor.csv_export_enabled', false),
             ],
         ];
 
@@ -308,6 +326,11 @@ class SpreadsheetEditor implements Arrayable
             'token' => $token,
             'dataUrl' => route('filament-spreadsheet-editor.rows.index', ['token' => $token]),
             'saveUrl' => route('filament-spreadsheet-editor.rows.update', ['token' => $token]),
+            'exportUrl' => route('filament-spreadsheet-editor.csv.export', ['token' => $token]),
+            'importPreviewUrl' => route('filament-spreadsheet-editor.csv.import.preview', ['token' => $token]),
+            'importApplyUrl' => route('filament-spreadsheet-editor.csv.import.apply', ['token' => $token]),
+            'importUniqueColumn' => $this->importUniqueColumn,
+            'maxSyncImportRows' => max(1, (int) config('filament-spreadsheet-editor.max_sync_import_rows', 1000)),
         ];
     }
 
@@ -321,9 +344,9 @@ class SpreadsheetEditor implements Arrayable
                 return $rule;
             }
 
-            $model = new $this->model();
+            $model = new $this->model;
 
-            return 'unique:' . $model->getTable() . ',' . $column->getName();
+            return 'unique:'.$model->getTable().','.$column->getName();
         }, $column->getRules());
     }
 }

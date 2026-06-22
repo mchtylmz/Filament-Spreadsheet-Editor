@@ -61,7 +61,7 @@ it('prevents unauthorized users from loading rows', function (): void {
     $token = registeredSpreadsheetEditor(authorized: false);
 
     $this
-        ->actingAs(new User())
+        ->actingAs(new User)
         ->getJson(route('filament-spreadsheet-editor.rows.index', ['token' => $token]))
         ->assertForbidden();
 });
@@ -80,7 +80,7 @@ it('allows authorized users to load paginated rows', function (): void {
     $token = registeredSpreadsheetEditor();
 
     $this
-        ->actingAs(new User())
+        ->actingAs(new User)
         ->getJson(route('filament-spreadsheet-editor.rows.index', [
             'token' => $token,
             'per_page' => 2,
@@ -98,7 +98,7 @@ it('searches across configured searchable columns', function (): void {
     $token = registeredSpreadsheetEditor();
 
     $this
-        ->actingAs(new User())
+        ->actingAs(new User)
         ->getJson(route('filament-spreadsheet-editor.rows.index', [
             'token' => $token,
             'search' => 'lamp',
@@ -114,7 +114,7 @@ it('sorts by configured columns', function (): void {
     $token = registeredSpreadsheetEditor();
 
     $this
-        ->actingAs(new User())
+        ->actingAs(new User)
         ->getJson(route('filament-spreadsheet-editor.rows.index', [
             'token' => $token,
             'sort' => [
@@ -134,7 +134,7 @@ it('ignores sorting for configured non-sortable columns', function (): void {
     $token = registeredSpreadsheetEditor();
 
     $this
-        ->actingAs(new User())
+        ->actingAs(new User)
         ->getJson(route('filament-spreadsheet-editor.rows.index', [
             'token' => $token,
             'sort' => [
@@ -152,7 +152,7 @@ it('filters by configured columns', function (): void {
     $token = registeredSpreadsheetEditor();
 
     $this
-        ->actingAs(new User())
+        ->actingAs(new User)
         ->getJson(route('filament-spreadsheet-editor.rows.index', [
             'token' => $token,
             'filters' => [
@@ -170,7 +170,7 @@ it('returns only configured columns', function (): void {
     $token = registeredSpreadsheetEditor();
 
     $response = $this
-        ->actingAs(new User())
+        ->actingAs(new User)
         ->getJson(route('filament-spreadsheet-editor.rows.index', ['token' => $token]))
         ->assertOk();
 
@@ -184,8 +184,8 @@ it('returns only configured columns', function (): void {
 });
 
 it('rebuilds named editors from the same token on a fresh request registry', function (): void {
-    $firstRegistry = new SpreadsheetEditorRegistry();
-    $secondRegistry = new SpreadsheetEditorRegistry();
+    $firstRegistry = new SpreadsheetEditorRegistry;
+    $secondRegistry = new SpreadsheetEditorRegistry;
     $resolver = fn (): SpreadsheetEditor => SpreadsheetEditor::make()
         ->model(Product::class)
         ->columns([SpreadsheetColumn::make('name')]);
@@ -206,10 +206,8 @@ it('exposes backend urls only for named registry editors', function (): void {
         ->columns([SpreadsheetColumn::make('name')]));
     $config = $registry->editor('products')->toFrontendConfig();
 
-    expect($config)
-        ->toMatchArray([
-            'token' => $token,
-            'features' => ['mockSave' => false],
-        ])
-        ->toHaveKeys(['dataUrl', 'saveUrl']);
+    expect($config['token'])->toBe($token)
+        ->and($config['features']['mockSave'])->toBeFalse();
+
+    expect($config)->toHaveKeys(['dataUrl', 'saveUrl']);
 });

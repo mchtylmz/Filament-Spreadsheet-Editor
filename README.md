@@ -34,12 +34,21 @@ use Mivento\FilamentSpreadsheetEditor\SpreadsheetEditorPlugin;
 
 $panel
     ->plugin(
-        SpreadsheetEditorPlugin::make()
+SpreadsheetEditorPlugin::make()
             ->defaultAdapter('tabulator')
             ->enableAuditLog()
             ->enableCsvImport()
             ->enableCsvExport()
     );
+```
+
+CSV features are disabled by default. They can be enabled through the plugin methods above or published configuration:
+
+```php
+'csv_import_enabled' => true,
+'csv_export_enabled' => true,
+'max_sync_import_rows' => 1000,
+'import_disk' => 'local',
 ```
 
 ## Editor API
@@ -176,6 +185,7 @@ class AppServiceProvider extends ServiceProvider
                 SpreadsheetColumn::make('price')->number()->editable(),
                 SpreadsheetColumn::make('stock')->integer()->editable(),
             ])
+            ->importUniqueColumn('sku')
             ->query(fn ($query) => $query->where('active', true))
             ->tenantQuery(fn ($query, $tenant) => $query->whereBelongsTo($tenant))
             ->authorize(fn ($user) => $user->can('manage products')));
@@ -249,3 +259,47 @@ The Tabulator editor includes:
 - `Ctrl/Cmd+S` to save, `Ctrl/Cmd+Z` to undo, and `Ctrl/Cmd+Shift+Z` to redo
 
 Toolbar, grid, dirty, validation, and conflict states adapt to Filament light and dark modes.
+
+## CSV Export
+
+Authenticated and authorized users can export the current spreadsheet query:
+
+```text
+GET /filament-spreadsheet-editor/editors/{token}/csv/export
+```
+
+The frontend sends visible column names by default. Passing `all_columns=1` exports every configured column. The endpoint accepts the same `search`, `filters`, `sort`, and `sorters` parameters as row loading, and streams records with an Eloquent cursor instead of loading the full dataset into memory.
+
+## CSV Import
+
+CSV import uses a two-step flow:
+
+```text
+POST /filament-spreadsheet-editor/editors/{token}/csv/import/preview
+POST /filament-spreadsheet-editor/editors/{token}/csv/import/apply
+```
+
+The preview request uploads a `file`, stores it on `import_disk`, and returns:
+
+- CSV headers and suggested mappings
+- available configured columns
+- the first 20 rows
+- total row count
+- a short-lived import token
+
+Apply the import with:
+
+```json
+{
+  "import_token": "generated-token",
+  "mapping": {
+    "sku": "sku",
+    "Product Name": "name",
+    "Unit Price": "price"
+  },
+  "match_by": "unique",
+  "queue": false
+}
+```
+
+`match_by` may be `primary` or `unique`. Unique matching requires `->importUniqueColumn('sku')` on the editor. All rows are validated before updates are applied, and validation failures are returned with CSV line numbers. Imports above `max_sync_import_rows` require `"queue": true`; smaller imports stay synchronous, which keeps package tests deterministic.

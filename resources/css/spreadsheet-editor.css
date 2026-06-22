@@ -100,6 +100,7 @@
 .filament-spreadsheet-editor__icon-button svg,
 .filament-spreadsheet-editor__changes-toggle svg,
 .filament-spreadsheet-editor__save svg,
+.filament-spreadsheet-editor__secondary-action svg,
 .filament-spreadsheet-editor__reload svg,
 .filament-spreadsheet-editor__cell-error svg {
     width: 1rem;
@@ -153,7 +154,8 @@
 }
 
 .filament-spreadsheet-editor__discard,
-.filament-spreadsheet-editor__save {
+.filament-spreadsheet-editor__save,
+.filament-spreadsheet-editor__secondary-action {
     display: inline-flex;
     min-height: 2.25rem;
     align-items: center;
@@ -170,6 +172,20 @@
     border: 1px solid var(--fse-border);
     background: var(--fse-bg);
     color: var(--fse-danger);
+}
+
+.filament-spreadsheet-editor__secondary-action {
+    border: 1px solid var(--fse-border);
+    background: var(--fse-bg);
+    color: var(--fse-text);
+}
+
+.filament-spreadsheet-editor__secondary-action:hover:not(:disabled) {
+    background: var(--fse-surface-active);
+}
+
+.filament-spreadsheet-editor__file-input {
+    display: none;
 }
 
 .filament-spreadsheet-editor__discard:hover:not(:disabled) {
@@ -194,6 +210,123 @@
     border: 1px solid var(--fse-border);
     border-radius: 0.375rem;
     background: var(--fse-bg);
+}
+
+.filament-spreadsheet-editor__csv {
+    border: 1px solid var(--fse-border);
+    border-radius: 0.375rem;
+    background: var(--fse-bg);
+}
+
+.filament-spreadsheet-editor__csv-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 0.75rem;
+}
+
+.filament-spreadsheet-editor__csv-summary,
+.filament-spreadsheet-editor__csv-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.filament-spreadsheet-editor__csv-summary span,
+.filament-spreadsheet-editor__csv-footer > span {
+    color: var(--fse-muted);
+    font-size: 0.75rem;
+}
+
+.filament-spreadsheet-editor__csv-mapping {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: 0.75rem;
+}
+
+.filament-spreadsheet-editor__csv-mapping label,
+.filament-spreadsheet-editor__csv-options > label:not(.filament-spreadsheet-editor__csv-queue) {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.375rem;
+    color: var(--fse-muted);
+    font-size: 0.75rem;
+}
+
+.filament-spreadsheet-editor__csv select {
+    width: 100%;
+    min-height: 2.25rem;
+    border: 1px solid var(--fse-border);
+    border-radius: 0.375rem;
+    padding: 0.375rem 0.5rem;
+    background: var(--fse-bg);
+    color: var(--fse-text);
+    font-size: 0.8125rem;
+}
+
+.filament-spreadsheet-editor__csv-options {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.filament-spreadsheet-editor__csv-options > label:first-child {
+    width: min(100%, 20rem);
+}
+
+.filament-spreadsheet-editor__csv-queue {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--fse-text);
+    font-size: 0.8125rem;
+}
+
+.filament-spreadsheet-editor__csv-preview {
+    max-height: 18rem;
+    overflow: auto;
+    border: 1px solid var(--fse-border);
+    border-radius: 0.375rem;
+}
+
+.filament-spreadsheet-editor__csv-preview table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+}
+
+.filament-spreadsheet-editor__csv-preview th,
+.filament-spreadsheet-editor__csv-preview td {
+    max-width: 16rem;
+    overflow: hidden;
+    border-bottom: 1px solid var(--fse-border);
+    padding: 0.5rem 0.625rem;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.filament-spreadsheet-editor__csv-preview th {
+    position: sticky;
+    top: 0;
+    background: var(--fse-surface);
+    color: var(--fse-text);
+    font-weight: 600;
+}
+
+.filament-spreadsheet-editor__csv-errors {
+    border-left: 3px solid var(--fse-danger);
+    padding: 0.5rem 0.75rem;
+    background: var(--fse-danger-bg);
+    color: var(--fse-danger);
+    font-size: 0.75rem;
+}
+
+.filament-spreadsheet-editor__csv-errors p {
+    margin: 0.25rem 0;
 }
 
 .filament-spreadsheet-editor__pending-heading {
@@ -416,6 +549,7 @@
     }
 
     .filament-spreadsheet-editor__actions {
+        flex-wrap: wrap;
         justify-content: flex-end;
     }
 
@@ -430,5 +564,11 @@
     .filament-spreadsheet-editor__reload {
         grid-column: 1 / -1;
         justify-self: start;
+    }
+
+    .filament-spreadsheet-editor__csv-options,
+    .filament-spreadsheet-editor__csv-footer {
+        align-items: stretch;
+        flex-direction: column;
     }
 }

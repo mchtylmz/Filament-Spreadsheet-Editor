@@ -75,6 +75,49 @@
         </div>
 
         <div class="filament-spreadsheet-editor__actions">
+            <input
+                x-ref="csvFile"
+                type="file"
+                accept=".csv,text/csv"
+                class="filament-spreadsheet-editor__file-input"
+                x-on:change="previewCsv($event.target.files[0]); $event.target.value = ''"
+            />
+
+            <button
+                x-show="csvImportEnabled"
+                x-cloak
+                type="button"
+                class="filament-spreadsheet-editor__secondary-action"
+                x-bind:disabled="csvPreviewing || csvImporting"
+                x-on:click="$refs.csvFile.click()"
+            >
+                <x-filament::icon icon="heroicon-m-arrow-up-tray" />
+                <span x-text="csvPreviewing ? 'Reading...' : 'Import CSV'"></span>
+            </button>
+
+            <button
+                x-show="csvExportEnabled"
+                x-cloak
+                type="button"
+                class="filament-spreadsheet-editor__secondary-action"
+                x-on:click="exportCsv(false)"
+            >
+                <x-filament::icon icon="heroicon-m-arrow-down-tray" />
+                <span>Export visible</span>
+            </button>
+
+            <button
+                x-show="csvExportEnabled"
+                x-cloak
+                type="button"
+                class="filament-spreadsheet-editor__icon-button"
+                x-on:click="exportCsv(true)"
+                title="Export all configured columns"
+                aria-label="Export all configured columns"
+            >
+                <x-filament::icon icon="heroicon-m-table-cells" />
+            </button>
+
             <button
                 type="button"
                 class="filament-spreadsheet-editor__discard"
@@ -153,6 +196,124 @@
                 </div>
             </template>
         </div>
+    </section>
+
+    <section
+        class="filament-spreadsheet-editor__csv"
+        x-show="csvPanelOpen"
+        x-cloak
+    >
+        <div class="filament-spreadsheet-editor__pending-heading">
+            <h3>CSV import</h3>
+            <button
+                type="button"
+                class="filament-spreadsheet-editor__icon-button"
+                x-on:click="csvPanelOpen = false"
+                title="Close CSV import"
+                aria-label="Close CSV import"
+            >
+                <x-filament::icon icon="heroicon-m-x-mark" />
+            </button>
+        </div>
+
+        <template x-if="csvErrors.length > 0">
+            <div class="filament-spreadsheet-editor__csv-errors" role="alert">
+                <template x-for="error in csvErrors" x-bind:key="error">
+                    <p x-text="error"></p>
+                </template>
+            </div>
+        </template>
+
+        <template x-if="csvPreview">
+            <div class="filament-spreadsheet-editor__csv-body">
+                <div class="filament-spreadsheet-editor__csv-summary">
+                    <strong x-text="`${csvPreview.total_rows} rows`"></strong>
+                    <span>Previewing the first 20 rows</span>
+                </div>
+
+                <div class="filament-spreadsheet-editor__csv-mapping">
+                    <template x-for="header in csvPreview.headers" x-bind:key="header">
+                        <label>
+                            <span x-text="header"></span>
+                            <select x-model="csvMapping[header]">
+                                <option value="">Do not import</option>
+                                <template x-for="column in csvPreview.columns" x-bind:key="column.field">
+                                    <option x-bind:value="column.field" x-text="column.label"></option>
+                                </template>
+                            </select>
+                        </label>
+                    </template>
+                </div>
+
+                <div class="filament-spreadsheet-editor__csv-options">
+                    <label>
+                        <span>Match rows by</span>
+                        <select x-model="csvMatchBy">
+                            <option value="primary" x-text="`Primary key (${csvPreview.primary_key})`"></option>
+                            <option
+                                x-show="csvPreview.unique_column"
+                                value="unique"
+                                x-text="`Unique column (${csvPreview.unique_column})`"
+                            ></option>
+                        </select>
+                    </label>
+
+                    <label
+                        class="filament-spreadsheet-editor__csv-queue"
+                        x-show="csvPreview.total_rows > maxSyncImportRows"
+                    >
+                        <input type="checkbox" x-model="csvQueue" />
+                        <span>Queue this large import</span>
+                    </label>
+                </div>
+
+                <div class="filament-spreadsheet-editor__csv-preview">
+                    <table>
+                        <thead>
+                            <tr>
+                                <template x-for="header in csvPreview.headers" x-bind:key="header">
+                                    <th x-text="header"></th>
+                                </template>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="row in csvPreview.preview" x-bind:key="row.line">
+                                <tr>
+                                    <template x-for="header in csvPreview.headers" x-bind:key="header">
+                                        <td x-text="displayValue(row[header])"></td>
+                                    </template>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <template x-if="csvResult?.row_errors?.length">
+                    <div class="filament-spreadsheet-editor__csv-errors" role="alert">
+                        <template x-for="error in csvResult.row_errors" x-bind:key="`${error.line}:${error.field}`">
+                            <p x-text="`Line ${error.line}, ${error.field}: ${(error.errors ?? []).join(' ')}`"></p>
+                        </template>
+                    </div>
+                </template>
+
+                <div class="filament-spreadsheet-editor__csv-footer">
+                    <span
+                        x-show="csvResult?.applied"
+                        x-text="`${csvResult?.updated_rows ?? 0} rows updated`"
+                    ></span>
+                    <span x-show="csvResult?.queued">Import queued</span>
+                    <button
+                        type="button"
+                        class="filament-spreadsheet-editor__save"
+                        x-bind:disabled="csvImporting"
+                        x-on:click="applyCsvImport()"
+                    >
+                        <x-filament::icon icon="heroicon-m-arrow-up-tray" />
+                        <span x-text="csvImporting ? 'Importing...' : 'Apply import'"></span>
+                    </button>
+                </div>
+            </div>
+        </template>
     </section>
 
     <div x-ref="grid" wire:ignore class="filament-spreadsheet-editor__grid"></div>

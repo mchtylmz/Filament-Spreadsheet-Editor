@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Event;
 use Mivento\FilamentSpreadsheetEditor\Actions\SaveSpreadsheetRows;
+use Mivento\FilamentSpreadsheetEditor\Builders\SpreadsheetEditor as SpreadsheetEditorBuilder;
 use Mivento\FilamentSpreadsheetEditor\Events\SpreadsheetBatchUpdated;
 use Mivento\FilamentSpreadsheetEditor\Events\SpreadsheetCellUpdated;
 use Mivento\FilamentSpreadsheetEditor\Events\SpreadsheetCellUpdating;
@@ -47,7 +48,7 @@ it('saves edited cells in a transaction and dispatches events', function (): voi
     $token = registeredSaveSpreadsheetEditor();
 
     $this
-        ->actingAs(new User())
+        ->actingAs(new User)
         ->postJson(route('filament-spreadsheet-editor.rows.update', ['token' => $token]), [
             'changes' => [
                 ['id' => $product->id, 'field' => 'price', 'old' => '10.00', 'value' => '12.50'],
@@ -74,7 +75,7 @@ it('returns validation errors and does not commit valid siblings', function (): 
     $token = registeredSaveSpreadsheetEditor();
 
     $this
-        ->actingAs(new User())
+        ->actingAs(new User)
         ->postJson(route('filament-spreadsheet-editor.rows.update', ['token' => $token]), [
             'changes' => [
                 ['id' => $product->id, 'field' => 'price', 'old' => '10.00', 'value' => -1],
@@ -98,7 +99,7 @@ it('forbids saving non editable configured columns', function (): void {
     $token = registeredSaveSpreadsheetEditor();
 
     $this
-        ->actingAs(new User())
+        ->actingAs(new User)
         ->postJson(route('filament-spreadsheet-editor.rows.update', ['token' => $token]), [
             'changes' => [
                 ['id' => $product->id, 'field' => 'sku', 'old' => 'SKU-SAVE', 'value' => 'SKU-HACK'],
@@ -116,7 +117,7 @@ it('forbids every cell when the editor authorization callback denies saving', fu
     $token = registeredSaveSpreadsheetEditor(authorized: false);
 
     $this
-        ->actingAs(new User())
+        ->actingAs(new User)
         ->postJson(route('filament-spreadsheet-editor.rows.update', ['token' => $token]), [
             'changes' => [
                 ['id' => $product->id, 'field' => 'price', 'old' => '10.00', 'value' => '12.50'],
@@ -137,7 +138,7 @@ it('preserves input order when one cell prevents the batch commit', function ():
     $token = registeredSaveSpreadsheetEditor();
 
     $this
-        ->actingAs(new User())
+        ->actingAs(new User)
         ->postJson(route('filament-spreadsheet-editor.rows.update', ['token' => $token]), [
             'changes' => [
                 ['id' => $product->id, 'field' => 'stock', 'old' => 4, 'value' => 5],
@@ -159,7 +160,7 @@ it('detects optimistic locking conflicts', function (): void {
     $product->forceFill(['price' => 11])->save();
 
     $this
-        ->actingAs(new User())
+        ->actingAs(new User)
         ->postJson(route('filament-spreadsheet-editor.rows.update', ['token' => $token]), [
             'changes' => [
                 ['id' => $product->id, 'field' => 'price', 'old' => '10.00', 'value' => '12.50'],
@@ -178,7 +179,7 @@ it('rechecks optimistic locking after records are locked in the transaction', fu
 
     app()->bind(SaveSpreadsheetRows::class, fn (): SaveSpreadsheetRows => new class extends SaveSpreadsheetRows
     {
-        protected function lockRecords(SpreadsheetEditor $editor, string $model, array $prepared): array
+        protected function lockRecords(SpreadsheetEditorBuilder $editor, string $model, array $prepared): array
         {
             Product::query()
                 ->whereKey($prepared[0]['id'])
@@ -189,7 +190,7 @@ it('rechecks optimistic locking after records are locked in the transaction', fu
     });
 
     $this
-        ->actingAs(new User())
+        ->actingAs(new User)
         ->postJson(route('filament-spreadsheet-editor.rows.update', ['token' => $token]), [
             'changes' => [
                 ['id' => $product->id, 'field' => 'price', 'old' => '10.00', 'value' => '12.50'],
@@ -218,7 +219,7 @@ it('rolls back the batch when an update event fails', function (): void {
     });
 
     $this
-        ->actingAs(new User())
+        ->actingAs(new User)
         ->postJson(route('filament-spreadsheet-editor.rows.update', ['token' => $token]), [
             'changes' => [
                 ['id' => $product->id, 'field' => 'price', 'old' => '10.00', 'value' => '12.50'],
@@ -231,4 +232,22 @@ it('rolls back the batch when an update event fails', function (): void {
 
     expect($product->price)->toEqual(10)
         ->and($product->stock)->toBe(4);
+});
+
+it('does not expose validation only mode through request input', function (): void {
+    $product = seedSaveProduct();
+    $token = registeredSaveSpreadsheetEditor();
+
+    $this
+        ->actingAs(new User)
+        ->postJson(route('filament-spreadsheet-editor.rows.update', ['token' => $token]), [
+            '_validate_only' => true,
+            'changes' => [
+                ['id' => $product->id, 'field' => 'stock', 'old' => 4, 'value' => 8],
+            ],
+        ])
+        ->assertOk()
+        ->assertJsonPath('results.0.committed', true);
+
+    expect($product->refresh()->stock)->toBe(8);
 });

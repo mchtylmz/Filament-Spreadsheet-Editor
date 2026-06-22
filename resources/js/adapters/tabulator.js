@@ -138,6 +138,42 @@ export class TabulatorSpreadsheetAdapter {
         }));
     }
 
+    csvExportUrl(allConfiguredColumns = false) {
+        const url = new URL(this.config.exportUrl, window.location.origin);
+
+        if (allConfiguredColumns) {
+            url.searchParams.set('all_columns', '1');
+        } else {
+            this.table
+                .getColumns()
+                .filter((column) => column.isVisible())
+                .map((column) => column.getField())
+                .filter(Boolean)
+                .forEach((field) => url.searchParams.append('columns[]', field));
+        }
+
+        this.table.getSorters().forEach((sorter, index) => {
+            url.searchParams.set(`sorters[${index}][field]`, sorter.field);
+            url.searchParams.set(`sorters[${index}][dir]`, sorter.dir);
+        });
+        this.table.getFilters().forEach((filter, index) => {
+            url.searchParams.set(`filters[${index}][field]`, filter.field);
+            url.searchParams.set(`filters[${index}][value]`, filter.value);
+        });
+
+        if (this.config.search) {
+            url.searchParams.set('search', this.config.search);
+        }
+
+        return url.toString();
+    }
+
+    refreshData() {
+        return this.config.dataUrl
+            ? this.table.replaceData()
+            : Promise.resolve();
+    }
+
     undo() {
         const action = this.history.undo();
 

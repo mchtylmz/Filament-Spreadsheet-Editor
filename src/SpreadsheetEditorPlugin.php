@@ -11,9 +11,9 @@ class SpreadsheetEditorPlugin implements Plugin
 
     protected bool $auditLogEnabled = false;
 
-    protected bool $csvImportEnabled = false;
+    protected ?bool $csvImportEnabled = null;
 
-    protected bool $csvExportEnabled = false;
+    protected ?bool $csvExportEnabled = null;
 
     public function getId(): string
     {
@@ -22,7 +22,11 @@ class SpreadsheetEditorPlugin implements Plugin
 
     public function register(Panel $panel): void
     {
-        //
+        config([
+            'filament-spreadsheet-editor.grid.adapter' => $this->defaultAdapter,
+            'filament-spreadsheet-editor.csv_import_enabled' => $this->hasCsvImportEnabled(),
+            'filament-spreadsheet-editor.csv_export_enabled' => $this->hasCsvExportEnabled(),
+        ]);
     }
 
     public function boot(Panel $panel): void
@@ -75,11 +79,13 @@ class SpreadsheetEditorPlugin implements Plugin
 
     public function hasCsvImportEnabled(): bool
     {
-        return $this->csvImportEnabled;
+        return $this->csvImportEnabled
+            ?? (bool) config('filament-spreadsheet-editor.csv_import_enabled', false);
     }
 
     public function hasCsvExportEnabled(): bool
     {
-        return $this->csvExportEnabled;
+        return $this->csvExportEnabled
+            ?? (bool) config('filament-spreadsheet-editor.csv_export_enabled', false);
     }
 }

@@ -1,7 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Mivento\FilamentSpreadsheetEditor\Http\Controllers\ApplySpreadsheetCsvImportController;
+use Mivento\FilamentSpreadsheetEditor\Http\Controllers\ExportSpreadsheetCsvController;
 use Mivento\FilamentSpreadsheetEditor\Http\Controllers\LoadSpreadsheetRowsController;
+use Mivento\FilamentSpreadsheetEditor\Http\Controllers\PreviewSpreadsheetCsvImportController;
 use Mivento\FilamentSpreadsheetEditor\Http\Controllers\SaveSpreadsheetRowsController;
 
 Route::middleware(config('filament-spreadsheet-editor.routes.middleware', ['web', 'auth']))
@@ -13,4 +16,13 @@ Route::middleware(config('filament-spreadsheet-editor.routes.middleware', ['web'
 
         Route::post('editors/{token}/rows', SaveSpreadsheetRowsController::class)
             ->name('rows.update');
+
+        Route::get('editors/{token}/csv/export', ExportSpreadsheetCsvController::class)
+            ->name('csv.export');
+
+        Route::post('editors/{token}/csv/import/preview', PreviewSpreadsheetCsvImportController::class)
+            ->name('csv.import.preview');
+
+        Route::post('editors/{token}/csv/import/apply', ApplySpreadsheetCsvImportController::class)
+            ->name('csv.import.apply');
     });

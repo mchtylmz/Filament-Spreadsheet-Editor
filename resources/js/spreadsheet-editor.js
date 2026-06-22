@@ -13,6 +13,18 @@ window.filamentSpreadsheetEditor = function filamentSpreadsheetEditor(config = {
         pendingChanges: [],
         saveResults: [],
         panelOpen: false,
+        csvPanelOpen: false,
+        csvPreviewing: false,
+        csvImporting: false,
+        csvPreview: null,
+        csvMapping: {},
+        csvMatchBy: 'primary',
+        csvQueue: false,
+        csvErrors: [],
+        csvResult: null,
+        csvImportEnabled: config.features?.csvImport === true,
+        csvExportEnabled: config.features?.csvExport === true,
+        maxSyncImportRows: config.maxSyncImportRows ?? 1000,
         rootElement: null,
         activationHandler: null,
         keydownHandler: null,
@@ -73,7 +85,7 @@ window.filamentSpreadsheetEditor = function filamentSpreadsheetEditor(config = {
             try {
                 const payload = await saveChanges(config, changes, {
                     fetcher: window.fetch.bind(window),
-                    csrfToken: document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
+                    csrfToken: this.csrfToken(),
                 });
 
                 if (payload.mocked) {
@@ -190,6 +202,97 @@ window.filamentSpreadsheetEditor = function filamentSpreadsheetEditor(config = {
             }
 
             return '';
+        },
+
+        exportCsv(allConfiguredColumns = false) {
+            if (!config.features?.csvExport || !config.exportUrl) {
+                return;
+            }
+
+            window.location.assign(this.adapter.csvExportUrl(allConfiguredColumns));
+        },
+
+        async previewCsv(file) {
+            if (!file || !config.features?.csvImport || !config.importPreviewUrl) {
+                return;
+            }
+
+            this.csvPreviewing = true;
+            this.csvErrors = [];
+            this.csvResult = null;
+            this.csvPanelOpen = true;
+            const body = new FormData();
+            body.append('file', file);
+
+            try {
+                const response = await window.fetch(config.importPreviewUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                    },
+                    body,
+                });
+                const payload = await response.json();
+
+                if (!response.ok || payload.has_errors) {
+                    this.csvErrors = Object.values(payload.errors ?? {}).flat();
+
+                    return;
+                }
+
+                this.csvPreview = payload;
+                this.csvMapping = { ...(payload.suggested_mapping ?? {}) };
+                this.csvMatchBy = payload.unique_column ? 'unique' : 'primary';
+                this.csvPanelOpen = true;
+            } catch (error) {
+                this.csvErrors = [error.message ?? 'The CSV preview failed.'];
+            } finally {
+                this.csvPreviewing = false;
+            }
+        },
+
+        async applyCsvImport() {
+            if (!this.csvPreview || this.csvImporting) {
+                return;
+            }
+
+            this.csvImporting = true;
+            this.csvErrors = [];
+            this.csvResult = null;
+
+            try {
+                const response = await window.fetch(config.importApplyUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken(),
+                    },
+                    body: JSON.stringify({
+                        import_token: this.csvPreview.import_token,
+                        mapping: this.csvMapping,
+                        match_by: this.csvMatchBy,
+                        queue: this.csvQueue,
+                    }),
+                });
+                const payload = await response.json();
+
+                this.csvResult = payload;
+                this.csvErrors = payload.errors ?? [];
+
+                if (payload.applied) {
+                    await this.adapter.refreshData();
+                }
+            } catch (error) {
+                this.csvErrors = [error.message ?? 'The CSV import failed.'];
+            } finally {
+                this.csvImporting = false;
+            }
+        },
+
+        csrfToken() {
+            return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
         },
 
         handleKeydown(event) {

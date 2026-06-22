@@ -34,15 +34,13 @@ it('builds a spreadsheet editor definition for an eloquent model', function (): 
             'hasAuthorizationCallback' => true,
         ]);
 
-    expect($editor->toFrontendConfig())->toMatchArray([
-        'adapter' => 'tabulator',
-        'features' => [
-            'selectableRows' => true,
-            'clipboard' => true,
-            'dirtyCells' => true,
-            'mockSave' => true,
-        ],
-    ]);
+    $serializedFrontendConfig = $editor->toFrontendConfig();
+
+    expect($serializedFrontendConfig['adapter'])->toBe('tabulator')
+        ->and($serializedFrontendConfig['features']['selectableRows'])->toBeTrue()
+        ->and($serializedFrontendConfig['features']['clipboard'])->toBeTrue()
+        ->and($serializedFrontendConfig['features']['dirtyCells'])->toBeTrue()
+        ->and($serializedFrontendConfig['features']['mockSave'])->toBeTrue();
 
     $frontendConfig = $editor->toFrontendConfig();
 

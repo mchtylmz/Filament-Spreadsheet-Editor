@@ -2,6 +2,7 @@
 
 namespace Mivento\FilamentSpreadsheetEditor\Actions;
 
+use Filament\Facades\Filament;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -26,7 +27,9 @@ class SaveSpreadsheetRows
 
         abort_unless(is_array($changes), 422, 'Spreadsheet changes must be an array.');
 
-        if (! $editor->isAuthorized($user)) {
+        $preAuthorized = $request->attributes->get('_spreadsheet_pre_authorized') === true;
+
+        if (! $preAuthorized && ! $editor->isAuthorized($user)) {
             $results = [];
 
             foreach ($changes as $index => $change) {
@@ -70,7 +73,7 @@ class SaveSpreadsheetRows
                 continue;
             }
 
-            $cellKey = (string) $id . ':' . $field;
+            $cellKey = (string) $id.':'.$field;
 
             if (isset($seenCells[$cellKey])) {
                 $results[$index] = $this->result($change, 'validation_error', [
@@ -129,6 +132,14 @@ class SaveSpreadsheetRows
             }
 
             return $this->response($results, hasErrors: true);
+        }
+
+        if ($request->attributes->get('_spreadsheet_validate_only') === true) {
+            foreach ($prepared as $index => $item) {
+                $results[$index] = $this->result($item['change'], 'success', ['committed' => false]);
+            }
+
+            return $this->response($results, hasErrors: false);
         }
 
         return DB::transaction(function () use ($editor, $model, $prepared): array {
@@ -212,8 +223,7 @@ class SaveSpreadsheetRows
         string $model,
         mixed $id,
         bool $lockForUpdate = false,
-    ): ?Model
-    {
+    ): ?Model {
         if ($id === null || $id === '') {
             return null;
         }
@@ -273,7 +283,7 @@ class SaveSpreadsheetRows
             $parameters = $rule === 'unique'
                 ? []
                 : str_getcsv(substr($rule, strlen('unique:')));
-            $modelInstance = new $model();
+            $modelInstance = new $model;
             $table = $parameters[0] ?? $modelInstance->getTable();
             $field = $parameters[1] ?? $column->getName();
 
@@ -344,12 +354,12 @@ class SaveSpreadsheetRows
 
     protected function currentFilamentTenant(): mixed
     {
-        if (! class_exists(\Filament\Facades\Filament::class)) {
+        if (! class_exists(Filament::class)) {
             return null;
         }
 
         try {
-            return \Filament\Facades\Filament::getTenant();
+            return Filament::getTenant();
         } catch (\Throwable) {
             return null;
         }
