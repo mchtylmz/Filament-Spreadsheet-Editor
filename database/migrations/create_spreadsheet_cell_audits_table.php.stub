@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('spreadsheet_cell_audits', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('user_id')->nullable()->index();
+            $table->string('model_type');
+            $table->string('model_id');
+            $table->string('field');
+            $table->json('old_value')->nullable();
+            $table->json('new_value')->nullable();
+            $table->uuid('batch_uuid')->index();
+            $table->ipAddress('ip_address')->nullable();
+            $table->text('user_agent')->nullable();
+            $table->timestamp('created_at')->useCurrent();
+
+            $table->index(['model_type', 'model_id', 'created_at'], 'spreadsheet_audits_model_history');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('spreadsheet_cell_audits');
+    }
+};

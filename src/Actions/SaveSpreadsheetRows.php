@@ -9,12 +9,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Mivento\FilamentSpreadsheetEditor\Builders\SpreadsheetColumn;
 use Mivento\FilamentSpreadsheetEditor\Builders\SpreadsheetEditor;
 use Mivento\FilamentSpreadsheetEditor\Events\SpreadsheetBatchUpdated;
 use Mivento\FilamentSpreadsheetEditor\Events\SpreadsheetCellUpdated;
 use Mivento\FilamentSpreadsheetEditor\Events\SpreadsheetCellUpdating;
+use Mivento\FilamentSpreadsheetEditor\Models\SpreadsheetCellAudit;
 
 class SaveSpreadsheetRows
 {
@@ -142,9 +144,10 @@ class SaveSpreadsheetRows
             return $this->response($results, hasErrors: false);
         }
 
-        return DB::transaction(function () use ($editor, $model, $prepared): array {
+        return DB::transaction(function () use ($editor, $model, $prepared, $request, $user): array {
             $results = [];
             $lockedRecords = $this->lockRecords($editor, $model, $prepared);
+            $batchUuid = (string) Str::uuid();
 
             foreach ($prepared as $index => $item) {
                 $record = $lockedRecords[(string) $item['id']] ?? null;
@@ -181,6 +184,7 @@ class SaveSpreadsheetRows
             foreach ($prepared as $index => $item) {
                 /** @var Model $record */
                 $record = $lockedRecords[(string) $item['id']];
+                $persistedOldValue = $record->getAttribute($item['field']);
 
                 event(new SpreadsheetCellUpdating(
                     $editor,
@@ -192,6 +196,16 @@ class SaveSpreadsheetRows
 
                 $record->setAttribute($item['field'], $item['value']);
                 $record->save();
+
+                $this->writeAudit(
+                    $record,
+                    $item['field'],
+                    $persistedOldValue,
+                    $record->getAttribute($item['field']),
+                    $batchUuid,
+                    $request,
+                    $user,
+                );
 
                 event(new SpreadsheetCellUpdated(
                     $editor,
@@ -215,6 +229,32 @@ class SaveSpreadsheetRows
         });
     }
 
+    protected function writeAudit(
+        Model $record,
+        string $field,
+        mixed $oldValue,
+        mixed $newValue,
+        string $batchUuid,
+        Request $request,
+        ?Authenticatable $user,
+    ): void {
+        if (! config('filament-spreadsheet-editor.audit_enabled', false)) {
+            return;
+        }
+
+        SpreadsheetCellAudit::query()->create([
+            'user_id' => $user?->getAuthIdentifier(),
+            'model_type' => $record->getMorphClass(),
+            'model_id' => (string) $record->getKey(),
+            'field' => $field,
+            'old_value' => $oldValue,
+            'new_value' => $newValue,
+            'batch_uuid' => $batchUuid,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+    }
+
     /**
      * @param  class-string<Model>  $model
      */
@@ -228,7 +268,7 @@ class SaveSpreadsheetRows
             return null;
         }
 
-        /** @var Builder $query */
+        /** @var Builder<Model> $query */
         $query = $model::query();
         $query = $editor->applyQuery($query);
         $query = $editor->applyTenantQuery($query, $this->currentFilamentTenant());

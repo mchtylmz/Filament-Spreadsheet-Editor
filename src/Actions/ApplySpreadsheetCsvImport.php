@@ -75,7 +75,7 @@ class ApplySpreadsheetCsvImport
             ];
         }
 
-        return $this->applyStored($editor, $importToken, $mapping, $matchBy);
+        return $this->applyStored($editor, $importToken, $mapping, $matchBy, $user, $request);
     }
 
     /**
@@ -87,6 +87,8 @@ class ApplySpreadsheetCsvImport
         string $importToken,
         array $mapping,
         string $matchBy,
+        ?Authenticatable $user = null,
+        ?Request $sourceRequest = null,
     ): array {
         $model = $editor->getModel();
         abort_if($model === null, 422, 'Spreadsheet editor model is not configured.');
@@ -182,9 +184,17 @@ class ApplySpreadsheetCsvImport
             ];
         }
 
-        $saveRequest = Request::create('/', 'POST', ['changes' => $changes]);
+        $saveRequest = Request::create(
+            '/',
+            'POST',
+            ['changes' => $changes],
+            server: array_filter([
+                'REMOTE_ADDR' => $sourceRequest?->server->get('REMOTE_ADDR'),
+                'HTTP_USER_AGENT' => $sourceRequest?->userAgent(),
+            ], fn (mixed $value): bool => $value !== null),
+        );
         $saveRequest->attributes->set('_spreadsheet_pre_authorized', true);
-        $saved = ($this->saveRows)($editor, $saveRequest, null);
+        $saved = ($this->saveRows)($editor, $saveRequest, $user);
 
         if ($saved['has_errors']) {
             return [

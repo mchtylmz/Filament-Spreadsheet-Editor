@@ -15,12 +15,14 @@ it('configures plugin defaults through a fluent api', function (): void {
         ->and($plugin->hasCsvExportEnabled())->toBeTrue();
 });
 
-it('uses published csv configuration when fluent overrides are omitted', function (): void {
+it('uses published feature configuration when fluent overrides are omitted', function (): void {
+    config()->set('filament-spreadsheet-editor.audit_enabled', true);
     config()->set('filament-spreadsheet-editor.csv_import_enabled', true);
     config()->set('filament-spreadsheet-editor.csv_export_enabled', true);
 
     $plugin = SpreadsheetEditorPlugin::make();
 
-    expect($plugin->hasCsvImportEnabled())->toBeTrue()
+    expect($plugin->hasAuditLogEnabled())->toBeTrue()
+        ->and($plugin->hasCsvImportEnabled())->toBeTrue()
         ->and($plugin->hasCsvExportEnabled())->toBeTrue();
 });

@@ -1,5 +1,7 @@
 # Changelog
 
+- Add transactional spreadsheet cell audit logging and Filament audit history relation manager.
+
 All notable changes to `mivento/filament-spreadsheet-editor` will be documented in this file.
 
 ## 0.1.0 - Unreleased

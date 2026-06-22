@@ -27,6 +27,13 @@ Publish frontend assets:
 php artisan vendor:publish --tag=filament-spreadsheet-editor-assets
 ```
 
+Publish and run the audit migration:
+
+```bash
+php artisan vendor:publish --tag=filament-spreadsheet-editor-migrations
+php artisan migrate
+```
+
 Register the plugin on a Filament panel:
 
 ```php
@@ -45,6 +52,7 @@ SpreadsheetEditorPlugin::make()
 CSV features are disabled by default. They can be enabled through the plugin methods above or published configuration:
 
 ```php
+'audit_enabled' => true,
 'csv_import_enabled' => true,
 'csv_export_enabled' => true,
 'max_sync_import_rows' => 1000,
@@ -245,6 +253,42 @@ The save action validates that each field is editable, applies Laravel validatio
 - `forbidden`
 
 The package dispatches `SpreadsheetCellUpdating`, `SpreadsheetCellUpdated`, and `SpreadsheetBatchUpdated` events during committed saves. The frontend preserves the first `old` value across repeated edits and renders validation/conflict details on the affected cell.
+
+## Audit Logging
+
+Audit logging is disabled by default. Enable it through the panel plugin:
+
+```php
+SpreadsheetEditorPlugin::make()->enableAuditLog()
+```
+
+Or set `audit_enabled` to `true` in the published package configuration. Every committed cell update writes a `SpreadsheetCellAudit` row in the same transaction as the model update. Cells from one save request share a `batch_uuid`; failed or rolled-back batches leave no audit rows.
+
+To expose audit history on a Filament resource, add the package trait to the resource model:
+
+```php
+use Mivento\FilamentSpreadsheetEditor\Concerns\HasSpreadsheetCellAudits;
+
+class Product extends Model
+{
+    use HasSpreadsheetCellAudits;
+}
+```
+
+Then register the supplied relation manager:
+
+```php
+use Mivento\FilamentSpreadsheetEditor\Filament\RelationManagers\SpreadsheetCellAuditsRelationManager;
+
+public static function getRelations(): array
+{
+    return [
+        SpreadsheetCellAuditsRelationManager::class,
+    ];
+}
+```
+
+The relation manager is read-only and shows field, old/new values, user, batch, IP address, and change time.
 
 ## Editing Experience
 

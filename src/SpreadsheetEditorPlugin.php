@@ -9,7 +9,7 @@ class SpreadsheetEditorPlugin implements Plugin
 {
     protected string $defaultAdapter = 'tabulator';
 
-    protected bool $auditLogEnabled = false;
+    protected ?bool $auditLogEnabled = null;
 
     protected ?bool $csvImportEnabled = null;
 
@@ -24,6 +24,7 @@ class SpreadsheetEditorPlugin implements Plugin
     {
         config([
             'filament-spreadsheet-editor.grid.adapter' => $this->defaultAdapter,
+            'filament-spreadsheet-editor.audit_enabled' => $this->hasAuditLogEnabled(),
             'filament-spreadsheet-editor.csv_import_enabled' => $this->hasCsvImportEnabled(),
             'filament-spreadsheet-editor.csv_export_enabled' => $this->hasCsvExportEnabled(),
         ]);
@@ -74,7 +75,8 @@ class SpreadsheetEditorPlugin implements Plugin
 
     public function hasAuditLogEnabled(): bool
     {
-        return $this->auditLogEnabled;
+        return $this->auditLogEnabled
+            ?? (bool) config('filament-spreadsheet-editor.audit_enabled', false);
     }
 
     public function hasCsvImportEnabled(): bool

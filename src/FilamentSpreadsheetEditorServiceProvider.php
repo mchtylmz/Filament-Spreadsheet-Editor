@@ -16,6 +16,7 @@ class FilamentSpreadsheetEditorServiceProvider extends PackageServiceProvider
         $package
             ->name('filament-spreadsheet-editor')
             ->hasConfigFile()
+            ->hasMigration('create_spreadsheet_cell_audits_table')
             ->hasRoute('filament-spreadsheet-editor')
             ->hasViews();
     }
@@ -28,7 +29,7 @@ class FilamentSpreadsheetEditorServiceProvider extends PackageServiceProvider
             $adapter = config('filament-spreadsheet-editor.grid.adapter', 'tabulator');
 
             return match ($adapter) {
-                'tabulator' => new TabulatorGridAdapter(),
+                'tabulator' => new TabulatorGridAdapter,
                 default => throw new \InvalidArgumentException("Unsupported spreadsheet grid adapter [{$adapter}]."),
             };
         });
@@ -37,17 +38,17 @@ class FilamentSpreadsheetEditorServiceProvider extends PackageServiceProvider
     public function packageBooted(): void
     {
         Blade::anonymousComponentPath(
-            __DIR__ . '/../resources/views/components',
+            __DIR__.'/../resources/views/components',
             'filament-spreadsheet-editor',
         );
 
         $this->publishes([
-            __DIR__ . '/../dist' => public_path('vendor/filament-spreadsheet-editor'),
+            __DIR__.'/../dist' => public_path('vendor/filament-spreadsheet-editor'),
         ], 'filament-spreadsheet-editor-assets');
 
         $this->publishes([
-            __DIR__ . '/../resources/js' => resource_path('js/vendor/filament-spreadsheet-editor'),
-            __DIR__ . '/../resources/css' => resource_path('css/vendor/filament-spreadsheet-editor'),
+            __DIR__.'/../resources/js' => resource_path('js/vendor/filament-spreadsheet-editor'),
+            __DIR__.'/../resources/css' => resource_path('css/vendor/filament-spreadsheet-editor'),
         ], 'filament-spreadsheet-editor-source');
     }
 }

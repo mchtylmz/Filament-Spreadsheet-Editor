@@ -18,6 +18,7 @@ return [
 
     'csv_import_enabled' => false,
     'csv_export_enabled' => false,
+    'audit_enabled' => false,
     'max_sync_import_rows' => 1000,
     'import_disk' => env('FILAMENT_SPREADSHEET_EDITOR_IMPORT_DISK', 'local'),
 
