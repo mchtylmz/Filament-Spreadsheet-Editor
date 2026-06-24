@@ -200,7 +200,7 @@ it('rechecks optimistic locking after records are locked in the transaction', fu
         ->assertOk()
         ->assertJsonPath('has_errors', true)
         ->assertJsonPath('results.0.status', 'conflict')
-        ->assertJsonPath('results.0.current', 11)
+        ->assertJsonPath('results.0.current', '11.00')
         ->assertJsonPath('results.1.status', 'success')
         ->assertJsonPath('results.1.committed', false);
 

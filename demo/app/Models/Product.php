@@ -1,17 +1,12 @@
 <?php
 
-namespace Mivento\FilamentSpreadsheetEditor\Tests\Fixtures;
+namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Mivento\FilamentSpreadsheetEditor\Concerns\HasSpreadsheetCellAudits;
-use Mivento\FilamentSpreadsheetEditor\Tests\Fixtures\Factories\ProductFactory;
 
 class Product extends Model
 {
-    /** @use HasFactory<ProductFactory> */
-    use HasFactory;
-
     use HasSpreadsheetCellAudits;
 
     protected $guarded = [];
@@ -27,10 +22,5 @@ class Product extends Model
             'price' => 'decimal:2',
             'internal_cost' => 'decimal:2',
         ];
-    }
-
-    protected static function newFactory(): ProductFactory
-    {
-        return ProductFactory::new();
     }
 }

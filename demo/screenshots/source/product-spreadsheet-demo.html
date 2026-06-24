@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Filament Spreadsheet Editor demo</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f8fafc;
+            --panel: #ffffff;
+            --panel-soft: #f9fafb;
+            --border: #d1d5db;
+            --text: #111827;
+            --muted: #6b7280;
+            --primary: #2563eb;
+            --success: #047857;
+            --warning-bg: #fffbeb;
+            --warning-border: #f59e0b;
+            --danger: #b91c1c;
+        }
+
+        [data-screen="dark"] {
+            color-scheme: dark;
+            --bg: #0f172a;
+            --panel: #111827;
+            --panel-soft: #1f2937;
+            --border: #374151;
+            --text: #f9fafb;
+            --muted: #9ca3af;
+            --primary: #60a5fa;
+            --success: #34d399;
+            --warning-bg: #422006;
+            --warning-border: #fbbf24;
+            --danger: #fca5a5;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            letter-spacing: 0;
+        }
+
+        .screen {
+            display: none;
+            min-height: 900px;
+            padding: 28px;
+        }
+
+        body[data-show="overview"] [data-screen="overview"],
+        body[data-show="csv"] [data-screen="csv"],
+        body[data-show="dark"] [data-screen="dark"] {
+            display: block;
+        }
+
+        .shell {
+            max-width: 1180px;
+            margin: 0 auto;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--panel);
+            color: var(--text);
+            box-shadow: 0 18px 40px rgb(15 23 42 / 0.08);
+            overflow: hidden;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            padding: 18px 20px;
+        }
+
+        .title h1 {
+            margin: 0;
+            font-size: 20px;
+            line-height: 1.2;
+        }
+
+        .title p {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .badge-row,
+        .toolbar,
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .badge,
+        .button,
+        .icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 34px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--panel);
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .badge {
+            padding: 0 10px;
+            color: var(--muted);
+        }
+
+        .button {
+            gap: 7px;
+            padding: 0 12px;
+        }
+
+        .button.primary {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .icon {
+            width: 34px;
+        }
+
+        .content {
+            padding: 18px 20px 22px;
+        }
+
+        .toolbar {
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 14px;
+        }
+
+        .pending {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 14px;
+            margin: 16px 0;
+        }
+
+        .panel {
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            background: var(--panel);
+            overflow: hidden;
+        }
+
+        .panel-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            padding: 12px 14px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .panel-body {
+            padding: 12px 14px;
+        }
+
+        .change {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        .change:last-child {
+            border-bottom: 0;
+        }
+
+        .change small {
+            display: block;
+            margin-top: 3px;
+            color: var(--muted);
+        }
+
+        .error {
+            display: flex;
+            gap: 8px;
+            margin-top: 7px;
+            color: var(--danger);
+            font-size: 12px;
+        }
+
+        .grid {
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 13px;
+        }
+
+        th {
+            background: var(--panel-soft);
+            color: var(--muted);
+            text-align: left;
+            font-weight: 700;
+        }
+
+        th,
+        td {
+            color: var(--text);
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        tr:last-child td {
+            border-bottom: 0;
+        }
+
+        th:last-child,
+        td:last-child {
+            border-right: 0;
+        }
+
+        .dirty {
+            background: var(--warning-bg);
+            box-shadow: inset 3px 0 0 var(--warning-border);
+            font-weight: 700;
+        }
+
+        .readonly {
+            color: var(--muted);
+            background: var(--panel-soft);
+        }
+
+        .yes {
+            color: var(--success);
+            font-weight: 700;
+        }
+
+        .csv-layout {
+            display: grid;
+            grid-template-columns: 0.9fr 1.1fr;
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .mapping {
+            display: grid;
+            gap: 10px;
+        }
+
+        .map-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .select {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 9px;
+            background: var(--panel-soft);
+        }
+
+        .audit-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .audit-item {
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            padding: 10px;
+            background: var(--panel-soft);
+            color: var(--text);
+            font-size: 13px;
+        }
+
+        .audit-item strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body data-show="overview">
+    <section class="screen" data-screen="overview">
+        <div class="shell">
+            <div class="topbar">
+                <div class="title">
+                    <h1>Product spreadsheet</h1>
+                    <p>Tabulator adapter, configured Eloquent columns, inline editing, CSV and audit enabled.</p>
+                </div>
+                <div class="badge-row">
+                    <span class="badge">Audit on</span>
+                    <span class="badge">CSV on</span>
+                </div>
+            </div>
+            <div class="content">
+                <div class="toolbar">
+                    <div class="actions">
+                        <span class="icon">↶</span>
+                        <span class="icon">↷</span>
+                        <button class="button">Pending changes <strong>3</strong></button>
+                        <span class="badge">2 dirty rows</span>
+                    </div>
+                    <div class="actions">
+                        <button class="button">Import CSV</button>
+                        <button class="button">Export visible</button>
+                        <button class="button">Discard all</button>
+                        <button class="button primary">Save all</button>
+                    </div>
+                </div>
+                <div class="pending">
+                    <div class="panel">
+                        <div class="panel-heading"><span>Pending changes</span><span>3 cells</span></div>
+                        <div class="panel-body">
+                            <div class="change"><div><strong>Price</strong><small>Row 1: 129.00 → 119.00</small></div><span class="badge">dirty</span></div>
+                            <div class="change"><div><strong>Stock</strong><small>Row 2: 8 → 12</small></div><span class="badge">dirty</span></div>
+                            <div class="change"><div><strong>Available on</strong><small>Row 3: 2026-07-10 → 2026-07-18</small></div><span class="badge">dirty</span></div>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-heading">Configured API</div>
+                        <div class="panel-body">
+                            <div class="change"><div><strong>Readonly</strong><small>Internal cost is visible but locked.</small></div></div>
+                            <div class="change"><div><strong>Validation</strong><small>SKU unique, price min:0, dates validated.</small></div></div>
+                            <div class="change"><div><strong>Authorization</strong><small>Only users with manage products can load/save.</small></div></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid">
+                    <table>
+                        <thead><tr><th>SKU</th><th>Product name</th><th>Price</th><th>Stock</th><th>Active</th><th>Available on</th><th>Internal cost</th></tr></thead>
+                        <tbody>
+                            <tr><td>SKU-001</td><td>Walnut Desk</td><td class="dirty">119.00</td><td>14</td><td class="yes">Yes</td><td>2026-07-01</td><td class="readonly">74.20</td></tr>
+                            <tr><td>SKU-002</td><td>Task Chair</td><td>89.00</td><td class="dirty">12</td><td class="yes">Yes</td><td>2026-06-30</td><td class="readonly">49.10</td></tr>
+                            <tr><td>SKU-003</td><td>Desk Lamp</td><td>36.50</td><td>21</td><td class="yes">Yes</td><td class="dirty">2026-07-18</td><td class="readonly">18.40</td></tr>
+                            <tr><td>SKU-004</td><td>Storage Cabinet</td><td>210.00</td><td>5</td><td>No</td><td>2026-08-02</td><td class="readonly">132.00</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="screen" data-screen="csv">
+        <div class="shell">
+            <div class="topbar">
+                <div class="title">
+                    <h1>CSV import preview</h1>
+                    <p>Preview first 20 rows, map incoming columns, validate before applying updates.</p>
+                </div>
+                <button class="button primary">Apply import</button>
+            </div>
+            <div class="content">
+                <div class="csv-layout">
+                    <div class="panel">
+                        <div class="panel-heading"><span>Column mapping</span><span>Match by SKU</span></div>
+                        <div class="panel-body mapping">
+                            <div class="map-row"><strong>sku</strong><span class="select">SKU</span></div>
+                            <div class="map-row"><strong>name</strong><span class="select">Product name</span></div>
+                            <div class="map-row"><strong>price</strong><span class="select">Price</span></div>
+                            <div class="map-row"><strong>active</strong><span class="select">Active</span></div>
+                            <div class="map-row"><strong>available_on</strong><span class="select">Available on</span></div>
+                        </div>
+                    </div>
+                    <div class="grid">
+                        <table>
+                            <thead><tr><th>Line</th><th>SKU</th><th>Name</th><th>Price</th><th>Active</th><th>Available on</th></tr></thead>
+                            <tbody>
+                                <tr><td>2</td><td>SKU-001</td><td>Walnut Desk</td><td>119.00</td><td>true</td><td>2026-07-01</td></tr>
+                                <tr><td>3</td><td>SKU-002</td><td>Task Chair</td><td>-4</td><td>true</td><td>2026-06-30</td></tr>
+                                <tr><td>4</td><td>SKU-003</td><td>Desk Lamp</td><td>36.50</td><td>yes</td><td>bad-date</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="pending">
+                    <div class="panel">
+                        <div class="panel-heading">Row-level validation</div>
+                        <div class="panel-body">
+                            <div class="error">Line 3, price: The price must be at least 0.</div>
+                            <div class="error">Line 4, active: The active field must be true or false.</div>
+                            <div class="error">Line 4, available_on: The available on field must be a valid date.</div>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-heading">Export behavior</div>
+                        <div class="panel-body">
+                            <div class="change"><div><strong>Visible columns</strong><small>Default export mirrors current grid columns.</small></div></div>
+                            <div class="change"><div><strong>All configured columns</strong><small>Optional export includes readonly fields too.</small></div></div>
+                            <div class="change"><div><strong>Server-side state</strong><small>Search, filters and sort are respected.</small></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="screen" data-screen="dark">
+        <div class="shell">
+            <div class="topbar">
+                <div class="title">
+                    <h1>Audit history</h1>
+                    <p>Dark mode compatible audit view for record-level cell changes.</p>
+                </div>
+                <span class="badge">Batch 9f3a6e</span>
+            </div>
+            <div class="content">
+                <div class="pending">
+                    <div class="panel">
+                        <div class="panel-heading">Cell audit log</div>
+                        <div class="panel-body audit-list">
+                            <div class="audit-item"><strong>Price updated</strong>SKU-001 changed from 129.00 to 119.00 by Admin User.</div>
+                            <div class="audit-item"><strong>Stock updated</strong>SKU-002 changed from 8 to 12 by Admin User.</div>
+                            <div class="audit-item"><strong>Available on updated</strong>SKU-003 changed from 2026-07-10 to 2026-07-18.</div>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-heading">Conflict display</div>
+                        <div class="panel-body">
+                            <div class="change"><div><strong>Price</strong><small>Database value changed while editing.</small><div class="error">Conflict: reload cell to continue.</div></div><button class="button">Reload cell</button></div>
+                            <div class="change"><div><strong>Keyboard</strong><small>Cmd/Ctrl+S save, Cmd/Ctrl+Z undo, Shift redo.</small></div></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid">
+                    <table>
+                        <thead><tr><th>Field</th><th>Old value</th><th>New value</th><th>User</th><th>Recorded at</th></tr></thead>
+                        <tbody>
+                            <tr><td>price</td><td>129.00</td><td class="dirty">119.00</td><td>Admin User</td><td>2026-06-24 10:12</td></tr>
+                            <tr><td>stock</td><td>8</td><td class="dirty">12</td><td>Admin User</td><td>2026-06-24 10:12</td></tr>
+                            <tr><td>available_on</td><td>2026-07-10</td><td class="dirty">2026-07-18</td><td>Admin User</td><td>2026-06-24 10:13</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        document.body.dataset.show = params.get('screen') || 'overview';
+    </script>
+</body>
+</html>

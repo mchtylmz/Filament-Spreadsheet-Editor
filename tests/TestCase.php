@@ -2,7 +2,6 @@
 
 namespace Mivento\FilamentSpreadsheetEditor\Tests;
 
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Mivento\FilamentSpreadsheetEditor\FilamentSpreadsheetEditorServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
@@ -19,17 +18,8 @@ abstract class TestCase extends Orchestra
         $auditMigration = require __DIR__.'/../database/migrations/create_spreadsheet_cell_audits_table.php.stub';
         $auditMigration->up();
 
-        Schema::create('products', function (Blueprint $table): void {
-            $table->id();
-            $table->string('sku')->unique();
-            $table->string('name');
-            $table->decimal('price', 10, 2)->default(0);
-            $table->integer('stock')->default(0);
-            $table->boolean('active')->default(true);
-            $table->string('category')->nullable();
-            $table->decimal('internal_cost', 10, 2)->nullable();
-            $table->timestamps();
-        });
+        $productMigration = require __DIR__.'/Fixtures/database/migrations/create_products_table.php.stub';
+        $productMigration->up();
     }
 
     /**

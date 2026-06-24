@@ -1,6 +1,6 @@
 # Filament Spreadsheet Editor
 
-Premium Filament v5 plugin skeleton for building Excel-like editors for Eloquent models.
+Premium Filament v5 plugin for building Excel-like spreadsheet editors for Eloquent models.
 
 ## Requirements
 
@@ -9,49 +9,24 @@ Premium Filament v5 plugin skeleton for building Excel-like editors for Eloquent
 - Filament v5
 - Livewire v4
 
-## Installation
+## Copy-Paste Quickstart
+
+### 1. Install the Composer Package
 
 ```bash
 composer require mivento/filament-spreadsheet-editor
 ```
 
-Publish the configuration:
+### 2. Publish the Configuration
 
 ```bash
 php artisan vendor:publish --tag=filament-spreadsheet-editor-config
 ```
 
-Publish frontend assets:
-
-```bash
-php artisan vendor:publish --tag=filament-spreadsheet-editor-assets
-```
-
-Publish and run the audit migration:
-
-```bash
-php artisan vendor:publish --tag=filament-spreadsheet-editor-migrations
-php artisan migrate
-```
-
-Register the plugin on a Filament panel:
+Enable the premium features you plan to expose:
 
 ```php
-use Mivento\FilamentSpreadsheetEditor\SpreadsheetEditorPlugin;
-
-$panel
-    ->plugin(
-SpreadsheetEditorPlugin::make()
-            ->defaultAdapter('tabulator')
-            ->enableAuditLog()
-            ->enableCsvImport()
-            ->enableCsvExport()
-    );
-```
-
-CSV features are disabled by default. They can be enabled through the plugin methods above or published configuration:
-
-```php
+// config/filament-spreadsheet-editor.php
 'audit_enabled' => true,
 'csv_import_enabled' => true,
 'csv_export_enabled' => true,
@@ -59,9 +34,155 @@ CSV features are disabled by default. They can be enabled through the plugin met
 'import_disk' => 'local',
 ```
 
+### 3. Register the Plugin in Your Panel Provider
+
+```php
+use Filament\Panel;
+use Mivento\FilamentSpreadsheetEditor\SpreadsheetEditorPlugin;
+
+public function panel(Panel $panel): Panel
+{
+    return $panel
+        ->plugin(
+            SpreadsheetEditorPlugin::make()
+                ->defaultAdapter('tabulator')
+                ->enableAuditLog()
+                ->enableCsvImport()
+                ->enableCsvExport()
+        );
+}
+```
+
+### 4. Create a Custom Filament Page
+
+```bash
+php artisan make:filament-page ProductSpreadsheet
+```
+
+Use the package Blade component from the generated page view:
+
+```blade
+{{-- resources/views/filament/pages/product-spreadsheet.blade.php --}}
+<x-filament-panels::page>
+    <x-filament-spreadsheet-editor::spreadsheet-editor :editor="$this->editor()" />
+</x-filament-panels::page>
+```
+
+### 5. Define Spreadsheet Columns
+
+```php
+namespace App\Filament\Pages;
+
+use App\Models\Product;
+use Filament\Pages\Page;
+use Illuminate\Database\Eloquent\Builder;
+use Mivento\FilamentSpreadsheetEditor\SpreadsheetColumn;
+use Mivento\FilamentSpreadsheetEditor\SpreadsheetEditor;
+
+class ProductSpreadsheet extends Page
+{
+    protected static ?string $navigationIcon = 'heroicon-o-table-cells';
+
+    protected string $view = 'filament.pages.product-spreadsheet';
+
+    public function editor(): SpreadsheetEditor
+    {
+        return SpreadsheetEditor::make()
+            ->model(Product::class)
+            ->columns([
+                SpreadsheetColumn::make('sku')
+                    ->label('SKU')
+                    ->text()
+                    ->required()
+                    ->unique()
+                    ->searchable(),
+                SpreadsheetColumn::make('name')
+                    ->label('Product name')
+                    ->text()
+                    ->required()
+                    ->max(120)
+                    ->searchable()
+                    ->editable(),
+                SpreadsheetColumn::make('price')
+                    ->label('Price')
+                    ->numeric()
+                    ->min(0)
+                    ->editable(),
+                SpreadsheetColumn::make('active')
+                    ->label('Active')
+                    ->boolean()
+                    ->editable(),
+                SpreadsheetColumn::make('available_on')
+                    ->label('Available on')
+                    ->date()
+                    ->editable(),
+                SpreadsheetColumn::make('internal_cost')
+                    ->label('Internal cost')
+                    ->numeric()
+                    ->readOnly(),
+            ])
+            ->importUniqueColumn('sku')
+            ->query(fn (Builder $query): Builder => $query->where('active', true))
+            ->authorize(fn ($user): bool => $user?->can('manage products') === true);
+    }
+}
+```
+
+This example includes a text column, numeric column, boolean column, date column, read-only column, validation rules, search, CSV unique matching, query scoping, and an authorization callback.
+
+### 6. Run Assets and Migrations When Needed
+
+Publish compiled frontend assets:
+
+```bash
+php artisan vendor:publish --tag=filament-spreadsheet-editor-assets
+```
+
+Audit logging requires the package migration:
+
+```bash
+php artisan vendor:publish --tag=filament-spreadsheet-editor-migrations
+php artisan migrate
+```
+
+Add the audit relation to models where you want record-level history:
+
+```php
+use Illuminate\Database\Eloquent\Model;
+use Mivento\FilamentSpreadsheetEditor\Concerns\HasSpreadsheetCellAudits;
+
+class Product extends Model
+{
+    use HasSpreadsheetCellAudits;
+}
+```
+
+Register the read-only audit relation manager on your Filament resource when you need an audit tab:
+
+```php
+use Mivento\FilamentSpreadsheetEditor\Filament\RelationManagers\SpreadsheetCellAuditsRelationManager;
+
+public static function getRelations(): array
+{
+    return [
+        SpreadsheetCellAuditsRelationManager::class,
+    ];
+}
+```
+
+Complete copy-paste demo stubs are available in `demo/app`, `demo/resources`, and `demo/database`. Test fixtures with a Product model, migration, factory, and `ProductSpreadsheetPage` live in `tests/Fixtures`.
+
+## Demo Screenshots
+
+The repository includes generated demo screenshots under `demo/screenshots`:
+
+- `product-spreadsheet-overview.png`
+- `product-spreadsheet-csv-import.png`
+- `product-spreadsheet-audit-dark.png`
+
 ## Editor API
 
-Define spreadsheet editors with a small builder API. This package does not ship the full UI yet; the builder serializes model, column, validation, grid, query, and authorization metadata for the future Livewire/Filament layer.
+Define spreadsheet editors with a small builder API. The builder serializes model, column, validation, grid, query, authorization, CSV, and audit-aware metadata for the Blade component and backend endpoints.
 
 ```php
 use App\Models\Product;
