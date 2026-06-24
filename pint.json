@@ -1,0 +1,7 @@
+{
+    "preset": "laravel",
+    "exclude": [
+        "dist",
+        "vendor"
+    ]
+}

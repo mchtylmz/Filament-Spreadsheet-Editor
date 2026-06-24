@@ -46,8 +46,17 @@
         }
     },
     "scripts": {
-        "analyse": "phpstan analyse",
-        "format": "pint",
+        "analyse": "phpstan analyse --memory-limit=512M",
+        "build": "npm run build",
+        "ci": [
+            "composer validate --strict",
+            "@format:test",
+            "@analyse",
+            "@test",
+            "@build"
+        ],
+        "format": "pint src config routes tests database/migrations demo",
+        "format:test": "pint --test src config routes tests database/migrations demo",
         "test": "pest"
     },
     "extra": {

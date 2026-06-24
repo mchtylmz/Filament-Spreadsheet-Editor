@@ -55,7 +55,7 @@
 
             <button
                 type="button"
-                class="filament-spreadsheet-editor__changes-toggle"
+                class="filament-spreadsheet-editor__changes-toggle filament-spreadsheet-editor__pill-button"
                 x-bind:class="{ 'is-active': panelOpen }"
                 x-on:click="panelOpen = ! panelOpen"
                 x-bind:aria-expanded="panelOpen"
@@ -67,7 +67,7 @@
             </button>
 
             <span
-                class="filament-spreadsheet-editor__dirty-rows"
+                class="filament-spreadsheet-editor__dirty-rows filament-spreadsheet-editor__status-pill"
                 x-show="dirtyRowCount > 0"
                 x-cloak
                 x-text="`${dirtyRowCount} dirty ${dirtyRowCount === 1 ? 'row' : 'rows'}`"
@@ -87,7 +87,7 @@
                 x-show="csvImportEnabled"
                 x-cloak
                 type="button"
-                class="filament-spreadsheet-editor__secondary-action"
+                class="filament-spreadsheet-editor__secondary-action filament-spreadsheet-editor__secondary-action--import"
                 x-bind:disabled="csvPreviewing || csvImporting"
                 x-on:click="$refs.csvFile.click()"
             >
@@ -99,7 +99,7 @@
                 x-show="csvExportEnabled"
                 x-cloak
                 type="button"
-                class="filament-spreadsheet-editor__secondary-action"
+                class="filament-spreadsheet-editor__secondary-action filament-spreadsheet-editor__secondary-action--export"
                 x-on:click="exportCsv(false)"
             >
                 <x-filament::icon icon="heroicon-m-arrow-down-tray" />
@@ -120,7 +120,7 @@
 
             <button
                 type="button"
-                class="filament-spreadsheet-editor__discard"
+                class="filament-spreadsheet-editor__discard filament-spreadsheet-editor__danger-action"
                 x-bind:disabled="! hasChanges || saving"
                 x-on:click="discardAll()"
             >
@@ -129,7 +129,7 @@
 
             <button
                 type="button"
-                class="filament-spreadsheet-editor__save"
+                class="filament-spreadsheet-editor__save filament-spreadsheet-editor__primary-action"
                 x-bind:disabled="! hasChanges || saving"
                 x-on:click="saveAll()"
             >

@@ -10,29 +10,39 @@
             --bg: #f8fafc;
             --panel: #ffffff;
             --panel-soft: #f9fafb;
-            --border: #d1d5db;
+            --panel-muted: #f1f5f9;
+            --border: #d9e2ec;
+            --border-strong: #cbd5e1;
             --text: #111827;
-            --muted: #6b7280;
+            --muted: #64748b;
             --primary: #2563eb;
+            --primary-soft: #eff6ff;
+            --primary-border: #bfdbfe;
             --success: #047857;
             --warning-bg: #fffbeb;
             --warning-border: #f59e0b;
             --danger: #b91c1c;
+            --danger-bg: #fff1f2;
         }
 
         [data-screen="dark"] {
             color-scheme: dark;
             --bg: #0f172a;
-            --panel: #111827;
+            --panel: #0f172a;
             --panel-soft: #1f2937;
+            --panel-muted: #172033;
             --border: #374151;
+            --border-strong: #475569;
             --text: #f9fafb;
             --muted: #9ca3af;
             --primary: #60a5fa;
+            --primary-soft: #172554;
+            --primary-border: #1e40af;
             --success: #34d399;
             --warning-bg: #422006;
             --warning-border: #fbbf24;
             --danger: #fca5a5;
+            --danger-bg: #450a0a;
         }
 
         * {
@@ -66,7 +76,7 @@
             border-radius: 8px;
             background: var(--panel);
             color: var(--text);
-            box-shadow: 0 18px 40px rgb(15 23 42 / 0.08);
+            box-shadow: 0 18px 45px rgb(15 23 42 / 0.08);
             overflow: hidden;
         }
 
@@ -111,6 +121,7 @@
             color: var(--text);
             font-size: 13px;
             font-weight: 600;
+            box-shadow: 0 1px 2px rgb(15 23 42 / 0.07);
         }
 
         .badge {
@@ -127,6 +138,7 @@
             border-color: var(--primary);
             background: var(--primary);
             color: #fff;
+            box-shadow: 0 8px 18px rgb(37 99 235 / 0.18);
         }
 
         .icon {
@@ -139,8 +151,10 @@
 
         .toolbar {
             justify-content: space-between;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            background: var(--panel-soft);
         }
 
         .pending {
@@ -154,6 +168,7 @@
             border: 1px solid var(--border);
             border-radius: 7px;
             background: var(--panel);
+            box-shadow: 0 1px 2px rgb(15 23 42 / 0.07);
             overflow: hidden;
         }
 
@@ -163,6 +178,7 @@
             justify-content: space-between;
             border-bottom: 1px solid var(--border);
             padding: 12px 14px;
+            background: var(--panel-soft);
             font-size: 13px;
             font-weight: 700;
         }
@@ -200,7 +216,9 @@
 
         .grid {
             border: 1px solid var(--border);
-            border-radius: 7px;
+            border-radius: 8px;
+            background: var(--panel);
+            box-shadow: 0 1px 2px rgb(15 23 42 / 0.07);
             overflow: hidden;
         }
 
@@ -278,7 +296,8 @@
             border: 1px solid var(--border);
             border-radius: 6px;
             padding: 8px 9px;
-            background: var(--panel-soft);
+            background: var(--panel);
+            box-shadow: 0 1px 2px rgb(15 23 42 / 0.07);
         }
 
         .audit-list {
@@ -293,6 +312,12 @@
             background: var(--panel-soft);
             color: var(--text);
             font-size: 13px;
+        }
+
+        .badge:first-child {
+            border-color: var(--primary-border);
+            background: var(--primary-soft);
+            color: var(--primary);
         }
 
         .audit-item strong {

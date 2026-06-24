@@ -3,6 +3,7 @@
 /.phpunit.cache
 /.pest
 /coverage
+/var/phpstan
 /composer.lock
 /build
 /AGENTS.md

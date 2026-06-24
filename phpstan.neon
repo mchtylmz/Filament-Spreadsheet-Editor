@@ -1,0 +1,7 @@
+parameters:
+    level: 6
+    paths:
+        - src
+        - tests/Fixtures/Product.php
+        - tests/Fixtures/ProductSpreadsheetPage.php
+    tmpDir: var/phpstan
