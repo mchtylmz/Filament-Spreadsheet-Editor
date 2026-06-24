@@ -6,6 +6,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
 use Mivento\FilamentSpreadsheetEditor\Builders\SpreadsheetColumn;
 use Mivento\FilamentSpreadsheetEditor\Builders\SpreadsheetEditor;
+use Mivento\FilamentSpreadsheetEditor\Support\CsvFormulaEscaper;
 use Mivento\FilamentSpreadsheetEditor\Support\InteractsWithSpreadsheetQuery;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -55,7 +56,7 @@ class ExportSpreadsheetCsv
 
             foreach ($query->cursor() as $record) {
                 fputcsv($output, array_map(
-                    fn (string $field): mixed => $record->getAttribute($field),
+                    fn (string $field): mixed => CsvFormulaEscaper::escape($record->getAttribute($field)),
                     $fields,
                 ));
             }

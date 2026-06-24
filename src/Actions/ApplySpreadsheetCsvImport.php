@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Bus;
 use Mivento\FilamentSpreadsheetEditor\Builders\SpreadsheetColumn;
 use Mivento\FilamentSpreadsheetEditor\Builders\SpreadsheetEditor;
 use Mivento\FilamentSpreadsheetEditor\Jobs\ProcessSpreadsheetCsvImport;
+use Mivento\FilamentSpreadsheetEditor\Support\CsvFormulaEscaper;
 use Mivento\FilamentSpreadsheetEditor\Support\CsvImportStore;
 use Mivento\FilamentSpreadsheetEditor\Support\CsvReader;
 use Mivento\FilamentSpreadsheetEditor\Support\InteractsWithSpreadsheetQuery;
@@ -282,8 +283,12 @@ class ApplySpreadsheetCsvImport
 
     protected function normalizeValue(SpreadsheetColumn $column, mixed $value): mixed
     {
-        if ($column->getType() !== 'boolean' || ! is_string($value)) {
+        if (! is_string($value)) {
             return $value;
+        }
+
+        if ($column->getType() !== 'boolean') {
+            return CsvFormulaEscaper::escape($value);
         }
 
         return match (strtolower(trim($value))) {

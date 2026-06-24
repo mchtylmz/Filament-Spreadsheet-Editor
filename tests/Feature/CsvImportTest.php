@@ -103,6 +103,29 @@ it('previews twenty rows and applies updates by configured unique column', funct
         ->and($product->stock)->toBe(5);
 });
 
+it('escapes imported text values that could be interpreted as spreadsheet formulas', function (): void {
+    $token = registeredCsvImportEditor();
+    $preview = previewCsvImport(
+        $this,
+        $token,
+        "sku,name,price,stock\nSKU-001,\"=HYPERLINK(\"\"https://example.com\"\")\",12.50,5\n",
+    );
+
+    $this
+        ->actingAs(new User)
+        ->postJson(route('filament-spreadsheet-editor.csv.import.apply', ['token' => $token]), [
+            'import_token' => $preview['import_token'],
+            'mapping' => $preview['suggested_mapping'],
+            'match_by' => 'unique',
+        ])
+        ->assertOk()
+        ->assertJsonPath('has_errors', false)
+        ->assertJsonPath('applied', true);
+
+    expect(Product::query()->where('sku', 'SKU-001')->value('name'))
+        ->toBe("'=HYPERLINK(\"https://example.com\")");
+});
+
 it('limits previews to twenty rows', function (): void {
     $token = registeredCsvImportEditor();
     $rows = collect(range(1, 21))

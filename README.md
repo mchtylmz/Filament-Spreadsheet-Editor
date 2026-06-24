@@ -32,6 +32,17 @@ Enable the premium features you plan to expose:
 'csv_export_enabled' => true,
 'max_sync_import_rows' => 1000,
 'import_disk' => 'local',
+'sensitive_fields' => [
+    'password',
+    'token',
+    'api_token',
+    'secret',
+    'secret_key',
+],
+'audit' => [
+    'redact_sensitive_fields' => true,
+    'redacted_value' => '[redacted]',
+],
 ```
 
 ### 3. Register the Plugin in Your Panel Provider
@@ -347,6 +358,8 @@ The Blade component reuses the named editor token and includes `dataUrl` and `sa
 Only configured columns are searchable, sortable, filterable, and returned in row payloads.
 Model keys are transported separately in the `row_ids` response field so the frontend can build save payloads without exposing unconfigured model attributes.
 
+For Filament tenancy, always add `tenantQuery()` when an editor model belongs to a tenant. The callback is applied to row loading, saving, CSV export, CSV import lookup, and optimistic-lock checks. A cross-tenant row ID will resolve as a conflict instead of being written.
+
 ## Saving Changes
 
 Edited cells are posted back to the registered editor token:
@@ -375,6 +388,8 @@ The save action validates that each field is editable, applies Laravel validatio
 
 The package dispatches `SpreadsheetCellUpdating`, `SpreadsheetCellUpdated`, and `SpreadsheetBatchUpdated` events during committed saves. The frontend preserves the first `old` value across repeated edits and renders validation/conflict details on the affected cell.
 
+Writes use configured fields only and persist values with `setAttribute()` followed by `save()`. Request payloads cannot choose a model class, cannot write unconfigured fields, and cannot bypass server-side validation by changing frontend metadata.
+
 ## Audit Logging
 
 Audit logging is disabled by default. Enable it through the panel plugin:
@@ -384,6 +399,18 @@ SpreadsheetEditorPlugin::make()->enableAuditLog()
 ```
 
 Or set `audit_enabled` to `true` in the published package configuration. Every committed cell update writes a `SpreadsheetCellAudit` row in the same transaction as the model update. Cells from one save request share a `batch_uuid`; failed or rolled-back batches leave no audit rows.
+
+Sensitive audit values are redacted by default when the edited field appears in `sensitive_fields`:
+
+```php
+'sensitive_fields' => ['password', 'api_token', 'secret_key'],
+'audit' => [
+    'redact_sensitive_fields' => true,
+    'redacted_value' => '[redacted]',
+],
+```
+
+Set `audit.redact_sensitive_fields` to `false` only when your application explicitly requires raw sensitive values in the audit table and your retention policy allows it.
 
 To expose audit history on a Filament resource, add the package trait to the resource model:
 
@@ -435,6 +462,8 @@ GET /filament-spreadsheet-editor/editors/{token}/csv/export
 
 The frontend sends visible column names by default. Passing `all_columns=1` exports every configured column. The endpoint accepts the same `search`, `filters`, `sort`, and `sorters` parameters as row loading, and streams records with an Eloquent cursor instead of loading the full dataset into memory.
 
+CSV exports escape values that start with `=`, `+`, `-`, or `@` so spreadsheet applications do not evaluate stored user data as formulas.
+
 ## CSV Import
 
 CSV import uses a two-step flow:
@@ -468,3 +497,13 @@ Apply the import with:
 ```
 
 `match_by` may be `primary` or `unique`. Unique matching requires `->importUniqueColumn('sku')` on the editor. All rows are validated before updates are applied, and validation failures are returned with CSV line numbers. Imports above `max_sync_import_rows` require `"queue": true`; smaller imports stay synchronous, which keeps package tests deterministic.
+
+CSV imports escape text values that start with `=`, `+`, `-`, or `@` before saving them, preventing formula payloads from being stored through spreadsheet uploads.
+
+## Security Notes
+
+- All package endpoints use the configured route middleware, which defaults to `web` and `auth`; keep `web` enabled for CSRF protection on POST routes.
+- Endpoints resolve editors by registered server-side tokens only. Unknown tokens return `404`.
+- Read, save, CSV export, and CSV import actions run the editor authorization callback.
+- Only configured columns are returned, filtered, sorted, exported, imported, or saved.
+- See `SECURITY.md` for the responsible disclosure placeholder and maintainer checklist.

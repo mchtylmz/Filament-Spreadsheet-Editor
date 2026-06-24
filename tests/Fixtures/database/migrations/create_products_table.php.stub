@@ -17,6 +17,7 @@ return new class extends Migration
             $table->boolean('active')->default(true);
             $table->date('available_on')->nullable();
             $table->string('category')->nullable();
+            $table->string('secret_key')->nullable();
             $table->decimal('internal_cost', 10, 2)->nullable();
             $table->timestamps();
         });

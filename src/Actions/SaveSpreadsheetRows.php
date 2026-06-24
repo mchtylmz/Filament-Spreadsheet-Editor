@@ -242,6 +242,9 @@ class SaveSpreadsheetRows
             return;
         }
 
+        $oldValue = $this->auditValue($field, $oldValue);
+        $newValue = $this->auditValue($field, $newValue);
+
         SpreadsheetCellAudit::query()->create([
             'user_id' => $user?->getAuthIdentifier(),
             'model_type' => $record->getMorphClass(),
@@ -253,6 +256,21 @@ class SaveSpreadsheetRows
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
+    }
+
+    protected function auditValue(string $field, mixed $value): mixed
+    {
+        if (! (bool) config('filament-spreadsheet-editor.audit.redact_sensitive_fields', true)) {
+            return $value;
+        }
+
+        $sensitiveFields = config('filament-spreadsheet-editor.sensitive_fields', []);
+
+        if (! is_array($sensitiveFields) || ! in_array($field, $sensitiveFields, true)) {
+            return $value;
+        }
+
+        return config('filament-spreadsheet-editor.audit.redacted_value', '[redacted]');
     }
 
     /**

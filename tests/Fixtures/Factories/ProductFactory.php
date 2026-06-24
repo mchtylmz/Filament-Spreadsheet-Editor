@@ -27,6 +27,7 @@ class ProductFactory extends Factory
             'active' => fake()->boolean(85),
             'available_on' => fake()->dateTimeBetween('-1 month', '+3 months')->format('Y-m-d'),
             'category' => fake()->randomElement(['Furniture', 'Lighting', 'Office', 'Storage']),
+            'secret_key' => fake()->sha256(),
             'internal_cost' => fake()->randomFloat(2, 2, 250),
         ];
     }

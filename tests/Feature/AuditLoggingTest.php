@@ -18,6 +18,7 @@ function registeredAuditSpreadsheetEditor(): string
             ->columns([
                 SpreadsheetColumn::make('price')->number()->min(0)->editable(),
                 SpreadsheetColumn::make('stock')->integer()->min(0)->editable(),
+                SpreadsheetColumn::make('secret_key')->text()->editable(),
             ])
             ->authorize(fn (?User $user): bool => $user !== null),
     );
@@ -30,6 +31,7 @@ function seedAuditProduct(): Product
         'name' => 'Audit Chair',
         'price' => 10,
         'stock' => 4,
+        'secret_key' => 'old-secret',
     ]);
 }
 
@@ -114,4 +116,54 @@ it('rolls back audit rows when the batch update fails', function (): void {
     expect(SpreadsheetCellAudit::query()->count())->toBe(0)
         ->and($product->refresh()->price)->toEqual(10)
         ->and($product->stock)->toBe(4);
+});
+
+it('redacts sensitive audit values by default', function (): void {
+    config()->set('filament-spreadsheet-editor.audit_enabled', true);
+    config()->set('filament-spreadsheet-editor.sensitive_fields', ['secret_key']);
+
+    $product = seedAuditProduct();
+
+    $this
+        ->actingAs(new User)
+        ->postJson(route('filament-spreadsheet-editor.rows.update', [
+            'token' => registeredAuditSpreadsheetEditor(),
+        ]), [
+            'changes' => [
+                ['id' => $product->id, 'field' => 'secret_key', 'old' => 'old-secret', 'value' => 'new-secret'],
+            ],
+        ])
+        ->assertOk()
+        ->assertJsonPath('has_errors', false);
+
+    $audit = SpreadsheetCellAudit::query()->firstOrFail();
+
+    expect($audit->old_value)->toBe('[redacted]')
+        ->and($audit->new_value)->toBe('[redacted]')
+        ->and($product->refresh()->secret_key)->toBe('new-secret');
+});
+
+it('can explicitly keep sensitive audit values when redaction is disabled', function (): void {
+    config()->set('filament-spreadsheet-editor.audit_enabled', true);
+    config()->set('filament-spreadsheet-editor.sensitive_fields', ['secret_key']);
+    config()->set('filament-spreadsheet-editor.audit.redact_sensitive_fields', false);
+
+    $product = seedAuditProduct();
+
+    $this
+        ->actingAs(new User)
+        ->postJson(route('filament-spreadsheet-editor.rows.update', [
+            'token' => registeredAuditSpreadsheetEditor(),
+        ]), [
+            'changes' => [
+                ['id' => $product->id, 'field' => 'secret_key', 'old' => 'old-secret', 'value' => 'new-secret'],
+            ],
+        ])
+        ->assertOk()
+        ->assertJsonPath('has_errors', false);
+
+    $audit = SpreadsheetCellAudit::query()->firstOrFail();
+
+    expect($audit->old_value)->toBe('old-secret')
+        ->and($audit->new_value)->toBe('new-secret');
 });

@@ -91,3 +91,19 @@ it('requires editor authorization before exporting', function (): void {
         ->get(route('filament-spreadsheet-editor.csv.export', ['token' => $token]))
         ->assertForbidden();
 });
+
+it('escapes exported values that could be interpreted as spreadsheet formulas', function (): void {
+    Product::query()->where('sku', 'SKU-002')->update(['name' => '=cmd|calc']);
+
+    $csv = $this
+        ->actingAs(new User)
+        ->get(route('filament-spreadsheet-editor.csv.export', [
+            'token' => registeredCsvExportEditor(),
+            'columns' => ['sku', 'name'],
+            'filters' => ['sku' => 'SKU-002'],
+        ]))
+        ->assertOk()
+        ->streamedContent();
+
+    expect($csv)->toContain("SKU-002,'=cmd|calc");
+});
