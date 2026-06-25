@@ -1,6 +1,50 @@
 # Filament Spreadsheet Editor
 
-Premium Filament v5 plugin for building Excel-like spreadsheet editors for Eloquent models.
+Premium Excel-like editing for Filament v5 panels, powered by Eloquent, Livewire v4, Alpine.js, Vite, and a grid-adapter architecture that starts with Tabulator and leaves room for AG Grid.
+
+Filament Spreadsheet Editor helps teams edit operational data without leaving their admin panel: products, prices, stock, catalog metadata, tenant-scoped records, approval queues, and any Eloquent-backed dataset that benefits from fast spreadsheet workflows.
+
+## Screenshots
+
+> Replace these placeholders with marketplace-optimized screenshots before publishing.
+
+| Spreadsheet editor | CSV import preview | Audit history |
+| --- | --- | --- |
+| `demo/screenshots/product-spreadsheet-overview.png` | `demo/screenshots/product-spreadsheet-csv-import.png` | `demo/screenshots/product-spreadsheet-audit-dark.png` |
+
+## Features
+
+- Filament v5 plugin registration with a fluent public API.
+- Excel-like Tabulator grid adapter with editable cells, row selection, clipboard copy/paste, dirty-cell styling, undo/redo, save all, discard all, and beforeunload protection.
+- Type-aware columns: text, number, integer, boolean, and date.
+- Server-side pagination, sorting, searching, and column filters.
+- Server-side validation using Laravel-compatible rules defined on `SpreadsheetColumn`.
+- Batch updates with optimistic locking, transactions, per-cell results, and conflict recovery.
+- CSV export with visible-column export by default and all-configured-column export when requested.
+- CSV import with column mapping, first-20-row preview, row-level validation, primary-key or unique-column matching, and optional queue support.
+- Audit logging for cell edits with redaction support for sensitive fields.
+- Tenant-aware query hook for Filament tenancy.
+- Adapter contract for future grid implementations such as AG Grid.
+- Pest, PHPStan, Pint, Vite, and GitHub Actions CI included.
+
+## Free vs Pro
+
+| Capability | Free | Pro |
+| --- | ---: | ---: |
+| Filament plugin registration | Yes | Yes |
+| Spreadsheet builder API | Yes | Yes |
+| Tabulator frontend adapter | Basic | Advanced |
+| Editable Eloquent rows | Limited | Yes |
+| Server-side pagination/search/sort/filter | No | Yes |
+| Batch save with optimistic locking | No | Yes |
+| CSV export | No | Yes |
+| CSV import with preview and mapping | No | Yes |
+| Audit logging | No | Yes |
+| Sensitive audit redaction | No | Yes |
+| Tenant-aware query hook | No | Yes |
+| Priority support and commercial license | No | Yes |
+
+This repository represents the premium package skeleton and implementation. Adjust the table to match your final marketplace packaging.
 
 ## Requirements
 
@@ -8,44 +52,36 @@ Premium Filament v5 plugin for building Excel-like spreadsheet editors for Eloqu
 - Laravel 11 or 12
 - Filament v5
 - Livewire v4
+- Node.js 20+ or 22+ for asset builds
 
-## Copy-Paste Quickstart
-
-### 1. Install the Composer Package
+## Installation
 
 ```bash
 composer require mivento/filament-spreadsheet-editor
 ```
 
-### 2. Publish the Configuration
+Publish the configuration:
 
 ```bash
 php artisan vendor:publish --tag=filament-spreadsheet-editor-config
 ```
 
-Enable the premium features you plan to expose:
+Publish compiled assets:
 
-```php
-// config/filament-spreadsheet-editor.php
-'audit_enabled' => true,
-'csv_import_enabled' => true,
-'csv_export_enabled' => true,
-'max_sync_import_rows' => 1000,
-'import_disk' => 'local',
-'sensitive_fields' => [
-    'password',
-    'token',
-    'api_token',
-    'secret',
-    'secret_key',
-],
-'audit' => [
-    'redact_sensitive_fields' => true,
-    'redacted_value' => '[redacted]',
-],
+```bash
+php artisan vendor:publish --tag=filament-spreadsheet-editor-assets
 ```
 
-### 3. Register the Plugin in Your Panel Provider
+Publish audit migrations only when audit logging is enabled:
+
+```bash
+php artisan vendor:publish --tag=filament-spreadsheet-editor-migrations
+php artisan migrate
+```
+
+More detail: [docs/installation.md](docs/installation.md)
+
+## Filament v5 PanelProvider Registration
 
 ```php
 use Filament\Panel;
@@ -64,13 +100,17 @@ public function panel(Panel $panel): Panel
 }
 ```
 
-### 4. Create a Custom Filament Page
+CSV and audit features are disabled by default and can be enabled through the plugin or the published configuration.
+
+## Basic Usage
+
+Create a Filament page:
 
 ```bash
 php artisan make:filament-page ProductSpreadsheet
 ```
 
-Use the package Blade component from the generated page view:
+Render the package component:
 
 ```blade
 {{-- resources/views/filament/pages/product-spreadsheet.blade.php --}}
@@ -79,7 +119,7 @@ Use the package Blade component from the generated page view:
 </x-filament-panels::page>
 ```
 
-### 5. Define Spreadsheet Columns
+Define the editor:
 
 ```php
 namespace App\Filament\Pages;
@@ -101,36 +141,13 @@ class ProductSpreadsheet extends Page
         return SpreadsheetEditor::make()
             ->model(Product::class)
             ->columns([
-                SpreadsheetColumn::make('sku')
-                    ->label('SKU')
-                    ->text()
-                    ->required()
-                    ->unique()
-                    ->searchable(),
-                SpreadsheetColumn::make('name')
-                    ->label('Product name')
-                    ->text()
-                    ->required()
-                    ->max(120)
-                    ->searchable()
-                    ->editable(),
-                SpreadsheetColumn::make('price')
-                    ->label('Price')
-                    ->numeric()
-                    ->min(0)
-                    ->editable(),
-                SpreadsheetColumn::make('active')
-                    ->label('Active')
-                    ->boolean()
-                    ->editable(),
-                SpreadsheetColumn::make('available_on')
-                    ->label('Available on')
-                    ->date()
-                    ->editable(),
-                SpreadsheetColumn::make('internal_cost')
-                    ->label('Internal cost')
-                    ->numeric()
-                    ->readOnly(),
+                SpreadsheetColumn::make('sku')->label('SKU')->text()->required()->unique()->searchable(),
+                SpreadsheetColumn::make('name')->text()->required()->max(120)->searchable()->editable(),
+                SpreadsheetColumn::make('price')->numeric()->min(0)->editable(),
+                SpreadsheetColumn::make('stock')->integer()->min(0)->editable(),
+                SpreadsheetColumn::make('active')->boolean()->editable(),
+                SpreadsheetColumn::make('available_on')->date()->editable(),
+                SpreadsheetColumn::make('internal_cost')->numeric()->readOnly(),
             ])
             ->importUniqueColumn('sku')
             ->query(fn (Builder $query): Builder => $query->where('active', true))
@@ -139,172 +156,9 @@ class ProductSpreadsheet extends Page
 }
 ```
 
-This example includes a text column, numeric column, boolean column, date column, read-only column, validation rules, search, CSV unique matching, query scoping, and an authorization callback.
+## Advanced Usage
 
-### 6. Run Assets and Migrations When Needed
-
-Publish compiled frontend assets:
-
-```bash
-php artisan vendor:publish --tag=filament-spreadsheet-editor-assets
-```
-
-Audit logging requires the package migration:
-
-```bash
-php artisan vendor:publish --tag=filament-spreadsheet-editor-migrations
-php artisan migrate
-```
-
-Add the audit relation to models where you want record-level history:
-
-```php
-use Illuminate\Database\Eloquent\Model;
-use Mivento\FilamentSpreadsheetEditor\Concerns\HasSpreadsheetCellAudits;
-
-class Product extends Model
-{
-    use HasSpreadsheetCellAudits;
-}
-```
-
-Register the read-only audit relation manager on your Filament resource when you need an audit tab:
-
-```php
-use Mivento\FilamentSpreadsheetEditor\Filament\RelationManagers\SpreadsheetCellAuditsRelationManager;
-
-public static function getRelations(): array
-{
-    return [
-        SpreadsheetCellAuditsRelationManager::class,
-    ];
-}
-```
-
-Complete copy-paste demo stubs are available in `demo/app`, `demo/resources`, and `demo/database`. Test fixtures with a Product model, migration, factory, and `ProductSpreadsheetPage` live in `tests/Fixtures`.
-
-## Demo Screenshots
-
-The repository includes generated demo screenshots under `demo/screenshots`:
-
-- `product-spreadsheet-overview.png`
-- `product-spreadsheet-csv-import.png`
-- `product-spreadsheet-audit-dark.png`
-
-## Editor API
-
-Define spreadsheet editors with a small builder API. The builder serializes model, column, validation, grid, query, authorization, CSV, and audit-aware metadata for the Blade component and backend endpoints.
-
-```php
-use App\Models\Product;
-use Mivento\FilamentSpreadsheetEditor\SpreadsheetColumn;
-use Mivento\FilamentSpreadsheetEditor\SpreadsheetEditor;
-
-SpreadsheetEditor::make()
-    ->model(Product::class)
-    ->columns([
-        SpreadsheetColumn::make('sku')->required()->unique(),
-        SpreadsheetColumn::make('name')->searchable()->editable(),
-        SpreadsheetColumn::make('price')->numeric()->min(0)->editable(),
-        SpreadsheetColumn::make('stock')->integer()->editable(),
-    ])
-    ->query(fn ($query) => $query->where('active', true))
-    ->authorize(fn ($user) => $user->can('manage products'));
-```
-
-Columns are read-only by default. Calling `editable()` marks the column as editable in the serialized grid configuration. Validation rules are stored as Laravel-compatible strings. A bare `unique()` rule is resolved from the configured model when the editor serializes validation rules:
-
-```php
-SpreadsheetColumn::make('price')
-    ->numeric()
-    ->min(0)
-    ->editable()
-    ->toGridColumn();
-```
-
-## Grid Adapters
-
-The first supported adapter is Tabulator. The PHP side depends on the `GridAdapter` contract so an AG Grid adapter can be added later without changing the public plugin entry point.
-
-## Development
-
-```bash
-composer install
-composer test
-composer analyse
-composer format
-```
-
-Frontend entry points live in `resources/js/spreadsheet-editor.js` and `resources/css/spreadsheet-editor.css`. Host applications should include or bundle the published assets with their Vite setup until a dedicated Filament asset pipeline integration is implemented.
-
-## Filament Custom Page Usage
-
-Build an editor definition in your Filament page class:
-
-```php
-use App\Models\Product;
-use Filament\Pages\Page;
-use Mivento\FilamentSpreadsheetEditor\SpreadsheetColumn;
-use Mivento\FilamentSpreadsheetEditor\SpreadsheetEditor;
-
-class ManageProductsSpreadsheet extends Page
-{
-    protected string $view = 'filament.pages.manage-products-spreadsheet';
-
-    public function editor(): SpreadsheetEditor
-    {
-        return SpreadsheetEditor::make()
-            ->model(Product::class)
-            ->columns([
-                SpreadsheetColumn::make('sku')->required()->unique(),
-                SpreadsheetColumn::make('name')->text()->searchable()->editable(),
-                SpreadsheetColumn::make('price')->number()->min(0)->editable(),
-                SpreadsheetColumn::make('stock')->integer()->editable(),
-                SpreadsheetColumn::make('active')->boolean()->editable(),
-                SpreadsheetColumn::make('available_on')->date()->editable(),
-            ])
-            ->query(fn ($query) => $query->where('active', true))
-            ->authorize(fn ($user) => $user->can('manage products'));
-    }
-}
-```
-
-Render the Blade component from the page view:
-
-```blade
-<x-filament-spreadsheet-editor::spreadsheet-editor :editor="$this->editor()" />
-```
-
-Include the built assets from your host app while the package asset pipeline is still intentionally lightweight:
-
-```blade
-@vite([
-    'vendor/mivento/filament-spreadsheet-editor/resources/js/spreadsheet-editor.js',
-    'vendor/mivento/filament-spreadsheet-editor/resources/css/spreadsheet-editor.css',
-])
-```
-
-Or publish the compiled package assets after running the package build:
-
-```bash
-npm install
-npm run build
-php artisan vendor:publish --tag=filament-spreadsheet-editor-assets
-```
-
-The first frontend adapter uses Tabulator. It supports editable cells, selectable rows, clipboard copy/paste through Tabulator, text/number/integer/boolean/date column types, dirty-cell highlighting, and batch save events.
-
-When the component receives a raw configuration without a `saveUrl`, saving is mocked in the browser: dirty cells are cleared and `filament-spreadsheet-editor:saving` followed by `filament-spreadsheet-editor:saved` is dispatched. Named editors resolved through `SpreadsheetEditorRegistry` include the backend `saveUrl` and use the persistence endpoint instead.
-
-## Backend Data Loading
-
-The package registers an authenticated JSON endpoint:
-
-```text
-GET /filament-spreadsheet-editor/editors/{token}/rows
-```
-
-Spreadsheet editors are loaded through a server-side registry token. The request never chooses a model class directly. Define named editors during application boot so their callbacks can be rebuilt safely for every HTTP request:
+For backend row loading, saving, import, and export, define named editors during application boot. Named editors are resolved through a server-side registry token so requests never choose arbitrary model classes.
 
 ```php
 use App\Models\Product;
@@ -320,20 +174,19 @@ class AppServiceProvider extends ServiceProvider
         $editors->define('products', fn () => SpreadsheetEditor::make()
             ->model(Product::class)
             ->columns([
-                SpreadsheetColumn::make('sku')->searchable(),
-                SpreadsheetColumn::make('name')->searchable()->editable(),
-                SpreadsheetColumn::make('price')->number()->editable(),
-                SpreadsheetColumn::make('stock')->integer()->editable(),
+                SpreadsheetColumn::make('sku')->text()->searchable(),
+                SpreadsheetColumn::make('name')->text()->searchable()->editable(),
+                SpreadsheetColumn::make('price')->numeric()->min(0)->editable(),
+                SpreadsheetColumn::make('stock')->integer()->min(0)->editable(),
             ])
             ->importUniqueColumn('sku')
-            ->query(fn ($query) => $query->where('active', true))
             ->tenantQuery(fn ($query, $tenant) => $query->whereBelongsTo($tenant))
-            ->authorize(fn ($user) => $user->can('manage products')));
+            ->authorize(fn ($user) => $user?->can('manage products') === true));
     }
 }
 ```
 
-Resolve that editor in the Filament page:
+Resolve the registered editor in your page:
 
 ```php
 public function editor(): SpreadsheetEditor
@@ -342,77 +195,67 @@ public function editor(): SpreadsheetEditor
 }
 ```
 
-The endpoint supports:
+## Authorization
 
-- `page` and `per_page`
-- `search`
-- `sort[field]` and `sort[direction]`
-- `filters[column_name]=value`
+Every real editor should define an authorization callback:
 
-The Blade component reuses the named editor token and includes `dataUrl` and `saveUrl` in the frontend config automatically. Editors that were not resolved from a named registry definition stay in local/mock mode and do not expose temporary backend URLs:
-
-```blade
-<x-filament-spreadsheet-editor::spreadsheet-editor :editor="$this->editor()" />
+```php
+->authorize(fn ($user): bool => $user?->can('manage products') === true)
 ```
 
-Only configured columns are searchable, sortable, filterable, and returned in row payloads.
-Model keys are transported separately in the `row_ids` response field so the frontend can build save payloads without exposing unconfigured model attributes.
+The callback is checked before row loading, saving, CSV export, and CSV import. Unauthenticated users are blocked by the default `web` and `auth` route middleware.
 
-For Filament tenancy, always add `tenantQuery()` when an editor model belongs to a tenant. The callback is applied to row loading, saving, CSV export, CSV import lookup, and optimistic-lock checks. A cross-tenant row ID will resolve as a conflict instead of being written.
+## Validation
 
-## Saving Changes
+Column validation is declared in PHP and enforced server-side during save and CSV import:
 
-Edited cells are posted back to the registered editor token:
+```php
+SpreadsheetColumn::make('price')
+    ->numeric()
+    ->min(0)
+    ->editable();
 
-```text
-POST /filament-spreadsheet-editor/editors/{token}/rows
+SpreadsheetColumn::make('sku')
+    ->required()
+    ->unique();
 ```
 
-Payload:
+`unique()` is resolved against the configured Eloquent model table when possible. Server responses include per-cell statuses such as `success`, `validation_error`, `conflict`, and `forbidden`.
 
-```json
-{
-  "changes": [
-    {"id": 1, "field": "price", "old": "10.00", "value": "12.50"},
-    {"id": 1, "field": "stock", "old": 4, "value": 5}
-  ]
-}
+More detail: [docs/columns.md](docs/columns.md)
+
+## CSV Import and Export
+
+Enable CSV features:
+
+```php
+SpreadsheetEditorPlugin::make()
+    ->enableCsvImport()
+    ->enableCsvExport();
 ```
 
-The save action validates that each field is editable, applies Laravel validation rules from `SpreadsheetColumn`, and checks optimistic locking against the `old` value again under a database row lock. Batches are atomic: if one cell fails validation or conflicts, valid sibling cells return `success` with `committed: false` and no writes are persisted.
+Export respects configured columns, current filters, search, and sort. Visible columns are exported by default; users can request all configured columns. Imports support upload, mapping, preview, validation, and apply-by-primary-key or apply-by-unique-column workflows.
 
-- `success`
-- `validation_error`
-- `conflict`
-- `forbidden`
+CSV values beginning with `=`, `+`, `-`, or `@` are escaped to reduce spreadsheet formula injection risk.
 
-The package dispatches `SpreadsheetCellUpdating`, `SpreadsheetCellUpdated`, and `SpreadsheetBatchUpdated` events during committed saves. The frontend preserves the first `old` value across repeated edits and renders validation/conflict details on the affected cell.
-
-Writes use configured fields only and persist values with `setAttribute()` followed by `save()`. Request payloads cannot choose a model class, cannot write unconfigured fields, and cannot bypass server-side validation by changing frontend metadata.
+More detail: [docs/import-export.md](docs/import-export.md)
 
 ## Audit Logging
 
-Audit logging is disabled by default. Enable it through the panel plugin:
+Enable audit logging:
 
 ```php
-SpreadsheetEditorPlugin::make()->enableAuditLog()
+SpreadsheetEditorPlugin::make()->enableAuditLog();
 ```
 
-Or set `audit_enabled` to `true` in the published package configuration. Every committed cell update writes a `SpreadsheetCellAudit` row in the same transaction as the model update. Cells from one save request share a `batch_uuid`; failed or rolled-back batches leave no audit rows.
+Publish and run the audit migration:
 
-Sensitive audit values are redacted by default when the edited field appears in `sensitive_fields`:
-
-```php
-'sensitive_fields' => ['password', 'api_token', 'secret_key'],
-'audit' => [
-    'redact_sensitive_fields' => true,
-    'redacted_value' => '[redacted]',
-],
+```bash
+php artisan vendor:publish --tag=filament-spreadsheet-editor-migrations
+php artisan migrate
 ```
 
-Set `audit.redact_sensitive_fields` to `false` only when your application explicitly requires raw sensitive values in the audit table and your retention policy allows it.
-
-To expose audit history on a Filament resource, add the package trait to the resource model:
+Add the relationship trait to audited models:
 
 ```php
 use Mivento\FilamentSpreadsheetEditor\Concerns\HasSpreadsheetCellAudits;
@@ -423,87 +266,140 @@ class Product extends Model
 }
 ```
 
-Then register the supplied relation manager:
+Sensitive fields are redacted by default:
 
 ```php
-use Mivento\FilamentSpreadsheetEditor\Filament\RelationManagers\SpreadsheetCellAuditsRelationManager;
-
-public static function getRelations(): array
-{
-    return [
-        SpreadsheetCellAuditsRelationManager::class,
-    ];
-}
+'sensitive_fields' => ['password', 'api_token', 'secret_key'],
+'audit' => [
+    'redact_sensitive_fields' => true,
+    'redacted_value' => '[redacted]',
+],
 ```
 
-The relation manager is read-only and shows field, old/new values, user, batch, IP address, and change time.
+More detail: [docs/audit-log.md](docs/audit-log.md)
 
-## Editing Experience
+## License Validation Extension
 
-The Tabulator editor includes:
+This package is prepared for premium distribution. Add your marketplace or license-server integration around package boot or panel registration:
 
-- undo and redo history
-- a pending changes panel with dirty row count
-- save all and discard all actions
-- per-cell validation and conflict messages
-- conflict recovery using the server's current cell value
-- unsaved-change protection before leaving the page
-- `Ctrl/Cmd+S` to save, `Ctrl/Cmd+Z` to undo, and `Ctrl/Cmd+Shift+Z` to redo
-
-Toolbar, grid, dirty, validation, and conflict states adapt to Filament light and dark modes.
-
-## CSV Export
-
-Authenticated and authorized users can export the current spreadsheet query:
-
-```text
-GET /filament-spreadsheet-editor/editors/{token}/csv/export
+```php
+SpreadsheetEditorPlugin::make()
+    ->defaultAdapter('tabulator');
 ```
 
-The frontend sends visible column names by default. Passing `all_columns=1` exports every configured column. The endpoint accepts the same `search`, `filters`, `sort`, and `sorters` parameters as row loading, and streams records with an Eloquent cursor instead of loading the full dataset into memory.
+Recommended extension points:
 
-CSV exports escape values that start with `=`, `+`, `-`, or `@` so spreadsheet applications do not evaluate stored user data as formulas.
+- validate the license in your application service provider before registering premium editors
+- cache successful license checks
+- fail closed for write/import/export operations when the license is invalid
+- keep local development and CI license behavior deterministic
 
-## CSV Import
+More detail: [docs/license.md](docs/license.md)
 
-CSV import uses a two-step flow:
+## Configuration
 
-```text
-POST /filament-spreadsheet-editor/editors/{token}/csv/import/preview
-POST /filament-spreadsheet-editor/editors/{token}/csv/import/apply
+Key options in `config/filament-spreadsheet-editor.php`:
+
+```php
+'grid' => [
+    'adapter' => 'tabulator',
+],
+'csv_import_enabled' => false,
+'csv_export_enabled' => false,
+'audit_enabled' => false,
+'max_sync_import_rows' => 1000,
+'import_disk' => 'local',
+'routes' => [
+    'prefix' => 'filament-spreadsheet-editor',
+    'middleware' => ['web', 'auth'],
+],
 ```
 
-The preview request uploads a `file`, stores it on `import_disk`, and returns:
+More detail: [docs/configuration.md](docs/configuration.md)
 
-- CSV headers and suggested mappings
-- available configured columns
-- the first 20 rows
-- total row count
-- a short-lived import token
+## Troubleshooting
 
-Apply the import with:
+**The grid renders but does not load backend rows.**
+Use a named editor from `SpreadsheetEditorRegistry`. Raw editor instances run in local/mock mode and do not expose backend URLs.
 
-```json
-{
-  "import_token": "generated-token",
-  "mapping": {
-    "sku": "sku",
-    "Product Name": "name",
-    "Unit Price": "price"
-  },
-  "match_by": "unique",
-  "queue": false
-}
+**POST requests fail with 419.**
+Keep the default `web` middleware and ensure the frontend sends the CSRF token. The bundled JavaScript reads the token from standard Laravel page metadata.
+
+**CSV import updates no rows.**
+Check the mapping, `match_by`, and `->importUniqueColumn('sku')` configuration.
+
+**Audit rows are empty or not created.**
+Enable audit logging, publish and run migrations, and ensure the batch actually commits.
+
+**Tenant records leak across panels.**
+Add `tenantQuery()` to every editor whose model belongs to a tenant.
+
+## Upgrade Notes
+
+- Keep PHP, Laravel, Filament, and Livewire versions aligned with the requirements above.
+- Re-publish assets after upgrading frontend code.
+- Review `config/filament-spreadsheet-editor.php` for new security or feature flags.
+- Run `composer ci` locally before upgrading production apps.
+- Watch release notes for adapter-level changes when AG Grid support is introduced.
+
+## Roadmap
+
+- AG Grid adapter implementation.
+- Column grouping and frozen columns.
+- Bulk fill and formula-like helper actions.
+- Saved grid views per user.
+- Import templates and downloadable CSV examples.
+- Optional queued export jobs for very large datasets.
+- Marketplace license validation package.
+
+## FAQ
+
+**Does this replace Filament tables?**
+No. It complements Filament tables when users need spreadsheet-style inline editing and batch save workflows.
+
+**Can I use it with any Eloquent model?**
+Yes, as long as the editor is configured server-side and only safe columns are exposed.
+
+**Are columns editable by default?**
+No. Columns are read-only until you call `editable()`.
+
+**Can users write hidden or unconfigured fields?**
+No. Save and import endpoints only accept configured editable columns.
+
+**Does it support tenancy?**
+Yes. Add `tenantQuery()` so all reads and writes are scoped to the active Filament tenant.
+
+**Is AG Grid supported today?**
+Not yet. The adapter contract exists so AG Grid can be added without changing the public editor API.
+
+## Documentation
+
+- [Installation](docs/installation.md)
+- [Configuration](docs/configuration.md)
+- [Columns](docs/columns.md)
+- [Import and Export](docs/import-export.md)
+- [Audit Log](docs/audit-log.md)
+- [Security](docs/security.md)
+- [License](docs/license.md)
+
+## Development
+
+```bash
+composer install
+npm ci
+composer ci
 ```
 
-`match_by` may be `primary` or `unique`. Unique matching requires `->importUniqueColumn('sku')` on the editor. All rows are validated before updates are applied, and validation failures are returned with CSV line numbers. Imports above `max_sync_import_rows` require `"queue": true`; smaller imports stay synchronous, which keeps package tests deterministic.
+Individual commands:
 
-CSV imports escape text values that start with `=`, `+`, `-`, or `@` before saving them, preventing formula payloads from being stored through spreadsheet uploads.
+```bash
+composer test
+composer analyse
+composer format
+composer build
+npm test
+```
 
-## Security Notes
+## License
 
-- All package endpoints use the configured route middleware, which defaults to `web` and `auth`; keep `web` enabled for CSRF protection on POST routes.
-- Endpoints resolve editors by registered server-side tokens only. Unknown tokens return `404`.
-- Read, save, CSV export, and CSV import actions run the editor authorization callback.
-- Only configured columns are returned, filtered, sorted, exported, imported, or saved.
-- See `SECURITY.md` for the responsible disclosure placeholder and maintainer checklist.
+This package currently uses the MIT license placeholder in this repository. Replace it with your commercial license before marketplace distribution.
