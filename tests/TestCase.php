@@ -14,6 +14,14 @@ abstract class TestCase extends Orchestra
 
         Schema::dropIfExists('spreadsheet_cell_audits');
         Schema::dropIfExists('products');
+        Schema::dropIfExists('users');
+
+        Schema::create('users', function ($table): void {
+            $table->id();
+            $table->string('name')->nullable();
+            $table->string('email')->nullable();
+            $table->timestamps();
+        });
 
         $auditMigration = require __DIR__.'/../database/migrations/create_spreadsheet_cell_audits_table.php.stub';
         $auditMigration->up();

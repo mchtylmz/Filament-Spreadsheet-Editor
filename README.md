@@ -203,7 +203,7 @@ Every real editor should define an authorization callback:
 ->authorize(fn ($user): bool => $user?->can('manage products') === true)
 ```
 
-The callback is checked before row loading, saving, CSV export, and CSV import. Unauthenticated users are blocked by the default `web` and `auth` route middleware.
+The callback is checked before row loading, saving, CSV export, and CSV import. Unauthenticated users are blocked by the package middleware group, which is populated from the registered Filament panel by default.
 
 ## Validation
 
@@ -309,9 +309,11 @@ Key options in `config/filament-spreadsheet-editor.php`:
 'audit_enabled' => false,
 'max_sync_import_rows' => 1000,
 'import_disk' => 'local',
+'import_ttl_minutes' => 60,
 'routes' => [
     'prefix' => 'filament-spreadsheet-editor',
-    'middleware' => ['web', 'auth'],
+    'middleware' => ['filament-spreadsheet-editor'],
+    'use_panel_middleware' => true,
 ],
 ```
 
@@ -323,7 +325,7 @@ More detail: [docs/configuration.md](docs/configuration.md)
 Use a named editor from `SpreadsheetEditorRegistry`. Raw editor instances run in local/mock mode and do not expose backend URLs.
 
 **POST requests fail with 419.**
-Keep the default `web` middleware and ensure the frontend sends the CSRF token. The bundled JavaScript reads the token from standard Laravel page metadata.
+Keep the default `filament-spreadsheet-editor` middleware group or include `web` in your custom middleware. The bundled JavaScript reads the CSRF token from standard Laravel page metadata.
 
 **CSV import updates no rows.**
 Check the mapping, `match_by`, and `->importUniqueColumn('sku')` configuration.
@@ -332,7 +334,7 @@ Check the mapping, `match_by`, and `->importUniqueColumn('sku')` configuration.
 Enable audit logging, publish and run migrations, and ensure the batch actually commits.
 
 **Tenant records leak across panels.**
-Add `tenantQuery()` to every editor whose model belongs to a tenant.
+Add `tenantQuery()` to every editor whose model belongs to a tenant. For fail-closed tenant-owned editors, add `->requiresTenant()` so requests without a Filament tenant context are rejected.
 
 ## Upgrade Notes
 

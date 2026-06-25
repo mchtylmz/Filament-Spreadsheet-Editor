@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Mivento\FilamentSpreadsheetEditor\SpreadsheetColumn;
 
 it('serializes editable column configuration and validation rules', function (): void {
@@ -72,4 +73,21 @@ it('replaces the opposite presence rule when required is toggled', function (): 
     $column->required();
 
     expect($column->getRules())->toBe(['required']);
+});
+
+it('keeps non string validation rules server side only', function (): void {
+    $rule = new class implements ValidationRule
+    {
+        public function validate(string $attribute, mixed $value, Closure $fail): void
+        {
+            //
+        }
+    };
+    $column = SpreadsheetColumn::make('status')
+        ->rule('required')
+        ->rule($rule);
+
+    expect($column->getRules())->toHaveCount(2)
+        ->and($column->serializableRules())->toBe(['required'])
+        ->and($column->toGridColumn()['validationRules'])->toBe(['required']);
 });

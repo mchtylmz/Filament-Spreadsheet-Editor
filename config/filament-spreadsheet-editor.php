@@ -33,9 +33,11 @@ return [
     ],
     'max_sync_import_rows' => 1000,
     'import_disk' => env('FILAMENT_SPREADSHEET_EDITOR_IMPORT_DISK', 'local'),
+    'import_ttl_minutes' => 60,
 
     'routes' => [
         'prefix' => 'filament-spreadsheet-editor',
-        'middleware' => ['web', 'auth'],
+        'middleware' => ['filament-spreadsheet-editor'],
+        'use_panel_middleware' => true,
     ],
 ];

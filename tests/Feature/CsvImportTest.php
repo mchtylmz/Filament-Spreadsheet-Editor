@@ -27,10 +27,10 @@ function registeredCsvImportEditor(bool $authorized = true): string
         ->define('csv-import-products-'.($authorized ? 'allowed' : 'denied'), fn (): SpreadsheetEditor => $editor);
 }
 
-function previewCsvImport(object $test, string $token, string $contents): array
+function previewCsvImport(object $test, string $token, string $contents, ?User $user = null): array
 {
     return $test
-        ->actingAs(new User)
+        ->actingAs($user ?? new User)
         ->post(route('filament-spreadsheet-editor.csv.import.preview', ['token' => $token]), [
             'file' => UploadedFile::fake()->createWithContent('products.csv', $contents),
         ])
@@ -218,4 +218,127 @@ it('queues imports that exceed the synchronous row limit', function (): void {
         ->assertJsonPath('total_rows', 2);
 
     Queue::assertPushed(ProcessSpreadsheetCsvImport::class);
+});
+
+it('rejects csv import tokens used by a different editor', function (): void {
+    $firstToken = registeredCsvImportEditor();
+    $secondToken = app(SpreadsheetEditorRegistry::class)
+        ->define('csv-import-other-editor', fn (): SpreadsheetEditor => SpreadsheetEditor::make()
+            ->model(Product::class)
+            ->columns([
+                SpreadsheetColumn::make('sku')->unique(),
+                SpreadsheetColumn::make('name')->required()->editable(),
+            ])
+            ->importUniqueColumn('sku')
+            ->authorize(fn (?User $user): bool => $user !== null));
+
+    $preview = previewCsvImport(
+        $this,
+        $firstToken,
+        "sku,name,price,stock\nSKU-001,Updated Chair,12.50,5\n",
+    );
+
+    $this
+        ->actingAs(new User)
+        ->postJson(route('filament-spreadsheet-editor.csv.import.apply', ['token' => $secondToken]), [
+            'import_token' => $preview['import_token'],
+            'mapping' => $preview['suggested_mapping'],
+            'match_by' => 'unique',
+        ])
+        ->assertOk()
+        ->assertJsonPath('has_errors', true)
+        ->assertJsonPath('errors.0', 'The CSV import token does not belong to this spreadsheet editor.');
+});
+
+it('rejects csv import tokens used by a different authenticated user', function (): void {
+    $owner = User::query()->create(['name' => 'Owner']);
+    $otherUser = User::query()->create(['name' => 'Other']);
+    $token = registeredCsvImportEditor();
+    $preview = previewCsvImport(
+        $this,
+        $token,
+        "sku,name,price,stock\nSKU-001,Updated Chair,12.50,5\n",
+        $owner,
+    );
+
+    $this
+        ->actingAs($otherUser)
+        ->postJson(route('filament-spreadsheet-editor.csv.import.apply', ['token' => $token]), [
+            'import_token' => $preview['import_token'],
+            'mapping' => $preview['suggested_mapping'],
+            'match_by' => 'unique',
+        ])
+        ->assertOk()
+        ->assertJsonPath('has_errors', true)
+        ->assertJsonPath('errors.0', 'The CSV import token does not belong to the authenticated user.');
+});
+
+it('runs queued imports with restored user and tenant context', function (): void {
+    config()->set('filament-spreadsheet-editor.max_sync_import_rows', 1);
+
+    $user = User::query()->create(['name' => 'Importer']);
+    $tenant = Product::query()->create([
+        'sku' => 'TENANT-A',
+        'name' => 'Tenant A',
+        'price' => 1,
+        'stock' => 1,
+        'category' => 'tenant-a',
+    ]);
+    Product::query()->create([
+        'sku' => 'SKU-002',
+        'name' => 'Old Desk',
+        'price' => 20,
+        'stock' => 2,
+        'category' => 'tenant-a',
+    ]);
+
+    app()->instance('filament', new class($tenant)
+    {
+        public function __construct(protected Product $tenant)
+        {
+            //
+        }
+
+        public function getTenant(): Product
+        {
+            return $this->tenant;
+        }
+    });
+
+    $editor = SpreadsheetEditor::make()
+        ->model(Product::class)
+        ->columns([
+            SpreadsheetColumn::make('sku')->unique(),
+            SpreadsheetColumn::make('name')->required()->editable(),
+            SpreadsheetColumn::make('price')->number()->min(0)->editable(),
+            SpreadsheetColumn::make('stock')->integer()->min(0)->editable(),
+        ])
+        ->importUniqueColumn('sku')
+        ->tenantQuery(fn ($query, Product $tenant) => $query->where('category', $tenant->category))
+        ->requiresTenant()
+        ->authorize(fn (?User $user): bool => $user?->exists === true);
+
+    $token = app(SpreadsheetEditorRegistry::class)
+        ->define('csv-import-queued-tenant', fn (): SpreadsheetEditor => $editor);
+    $preview = previewCsvImport(
+        $this,
+        $token,
+        "sku,name,price,stock\nTENANT-A,Tenant Updated,11,3\nSKU-002,Desk Updated,22,4\n",
+        $user,
+    );
+
+    $this
+        ->actingAs($user)
+        ->postJson(route('filament-spreadsheet-editor.csv.import.apply', ['token' => $token]), [
+            'import_token' => $preview['import_token'],
+            'mapping' => $preview['suggested_mapping'],
+            'match_by' => 'unique',
+            'queue' => true,
+        ])
+        ->assertOk()
+        ->assertJsonPath('queued', true)
+        ->assertJsonPath('total_rows', 2);
+
+    expect(Product::query()->where('sku', 'TENANT-A')->value('name'))->toBe('Tenant Updated')
+        ->and(Product::query()->where('sku', 'SKU-002')->value('name'))->toBe('Desk Updated');
 });

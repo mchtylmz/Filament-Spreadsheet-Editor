@@ -63,8 +63,11 @@ Audit redaction is enabled by default for fields listed in `sensitive_fields`.
 ```php
 'routes' => [
     'prefix' => 'filament-spreadsheet-editor',
-    'middleware' => ['web', 'auth'],
+    'middleware' => ['filament-spreadsheet-editor'],
+    'use_panel_middleware' => true,
 ],
 ```
 
-Keep `web` for CSRF protection and `auth` for authenticated Filament users.
+By default, the plugin maintains a `filament-spreadsheet-editor` middleware group. When the plugin is registered in a `PanelProvider`, that group is updated with the panel middleware, auth middleware, and tenant middleware. Set `use_panel_middleware` to `false` only when you need a fully custom route stack.
+
+If you override `routes.middleware`, keep `web` for CSRF protection and include the correct Filament panel auth middleware.

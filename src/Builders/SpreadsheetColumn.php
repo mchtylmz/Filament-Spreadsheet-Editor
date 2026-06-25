@@ -3,6 +3,8 @@
 namespace Mivento\FilamentSpreadsheetEditor\Builders;
 
 use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Contracts\Validation\Rule;
+use Illuminate\Contracts\Validation\ValidationRule;
 
 /**
  * @implements Arrayable<string, mixed>
@@ -21,7 +23,7 @@ class SpreadsheetColumn implements Arrayable
 
     protected string $type = 'text';
 
-    /** @var array<int, string> */
+    /** @var array<int, string|Rule|ValidationRule> */
     protected array $rules = [];
 
     final protected function __construct(string $name)
@@ -141,7 +143,7 @@ class SpreadsheetColumn implements Arrayable
         return $this->rule('max:'.$value);
     }
 
-    public function rule(string $rule): static
+    public function rule(string|Rule|ValidationRule $rule): static
     {
         if (! in_array($rule, $this->rules, true)) {
             $this->rules[] = $rule;
@@ -151,7 +153,7 @@ class SpreadsheetColumn implements Arrayable
     }
 
     /**
-     * @param  array<int, string>  $rules
+     * @param  array<int, string|Rule|ValidationRule>  $rules
      */
     public function rules(array $rules): static
     {
@@ -166,7 +168,7 @@ class SpreadsheetColumn implements Arrayable
     {
         $this->rules = array_values(array_filter(
             $this->rules,
-            fn (string $existingRule): bool => $existingRule !== $rule,
+            fn (string|Rule|ValidationRule $existingRule): bool => $existingRule !== $rule,
         ));
     }
 
@@ -201,7 +203,7 @@ class SpreadsheetColumn implements Arrayable
     }
 
     /**
-     * @return array<int, string>
+     * @return array<int, string|Rule|ValidationRule>
      */
     public function getRules(): array
     {
@@ -215,7 +217,7 @@ class SpreadsheetColumn implements Arrayable
     {
         return [
             'attribute' => $this->name,
-            'rules' => $this->rules,
+            'rules' => $this->serializableRules(),
         ];
     }
 
@@ -232,7 +234,7 @@ class SpreadsheetColumn implements Arrayable
             'editable' => $this->editable,
             'searchable' => $this->searchable,
             'sorter' => $this->sortable ? $this->sorterForType() : false,
-            'validationRules' => $this->rules,
+            'validationRules' => $this->serializableRules(),
         ];
     }
 
@@ -248,8 +250,19 @@ class SpreadsheetColumn implements Arrayable
             'editable' => $this->editable,
             'searchable' => $this->searchable,
             'sortable' => $this->sortable,
-            'rules' => $this->rules,
+            'rules' => $this->serializableRules(),
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function serializableRules(): array
+    {
+        return array_values(array_filter(
+            $this->rules,
+            fn (string|Rule|ValidationRule $rule): bool => is_string($rule),
+        ));
     }
 
     protected function editorForType(): string

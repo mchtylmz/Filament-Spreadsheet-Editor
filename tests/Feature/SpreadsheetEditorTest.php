@@ -4,6 +4,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Mivento\FilamentSpreadsheetEditor\SpreadsheetColumn;
 use Mivento\FilamentSpreadsheetEditor\SpreadsheetEditor;
 use Mivento\FilamentSpreadsheetEditor\Tests\Fixtures\Product;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 it('builds a spreadsheet editor definition for an eloquent model', function (): void {
     $editor = SpreadsheetEditor::make()
@@ -74,3 +75,16 @@ it('rejects non eloquent model classes', function (): void {
 it('rejects invalid column definitions', function (): void {
     SpreadsheetEditor::make()->columns(['sku']);
 })->throws(InvalidArgumentException::class);
+
+it('can require a tenant context before applying tenant scoped queries', function (): void {
+    $editor = SpreadsheetEditor::make()
+        ->model(Product::class)
+        ->columns([SpreadsheetColumn::make('name')])
+        ->requiresTenant()
+        ->tenantQuery(fn (Builder $query, Product $tenant): Builder => $query->where('category', $tenant->category));
+
+    expect($editor->requiresTenantContext())->toBeTrue()
+        ->and($editor->toArray())->toMatchArray(['requiresTenant' => true]);
+
+    $editor->applyTenantQuery(Product::query(), null);
+})->throws(HttpException::class);

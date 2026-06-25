@@ -7,7 +7,7 @@ use Mivento\FilamentSpreadsheetEditor\Http\Controllers\LoadSpreadsheetRowsContro
 use Mivento\FilamentSpreadsheetEditor\Http\Controllers\PreviewSpreadsheetCsvImportController;
 use Mivento\FilamentSpreadsheetEditor\Http\Controllers\SaveSpreadsheetRowsController;
 
-Route::middleware(config('filament-spreadsheet-editor.routes.middleware', ['web', 'auth']))
+Route::middleware(config('filament-spreadsheet-editor.routes.middleware', ['filament-spreadsheet-editor']))
     ->prefix(config('filament-spreadsheet-editor.routes.prefix', 'filament-spreadsheet-editor'))
     ->name('filament-spreadsheet-editor.')
     ->group(function (): void {

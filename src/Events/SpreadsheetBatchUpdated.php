@@ -2,9 +2,10 @@
 
 namespace Mivento\FilamentSpreadsheetEditor\Events;
 
+use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Mivento\FilamentSpreadsheetEditor\Builders\SpreadsheetEditor;
 
-class SpreadsheetBatchUpdated
+class SpreadsheetBatchUpdated implements ShouldDispatchAfterCommit
 {
     /**
      * @param  array<int, array<string, mixed>>  $results

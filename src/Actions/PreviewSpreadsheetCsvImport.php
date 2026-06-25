@@ -3,6 +3,7 @@
 namespace Mivento\FilamentSpreadsheetEditor\Actions;
 
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Validator;
@@ -10,6 +11,7 @@ use Mivento\FilamentSpreadsheetEditor\Builders\SpreadsheetColumn;
 use Mivento\FilamentSpreadsheetEditor\Builders\SpreadsheetEditor;
 use Mivento\FilamentSpreadsheetEditor\Support\CsvImportStore;
 use Mivento\FilamentSpreadsheetEditor\Support\CsvReader;
+use Mivento\FilamentSpreadsheetEditor\Support\FilamentTenantContext;
 use RuntimeException;
 
 class PreviewSpreadsheetCsvImport
@@ -28,6 +30,7 @@ class PreviewSpreadsheetCsvImport
         SpreadsheetEditor $editor,
         Request $request,
         ?Authenticatable $user,
+        string $editorToken,
     ): array {
         abort_unless(config('filament-spreadsheet-editor.csv_import_enabled', false), 404);
         abort_unless($editor->isAuthorized($user), 403);
@@ -45,7 +48,13 @@ class PreviewSpreadsheetCsvImport
 
         /** @var UploadedFile $file */
         $file = $request->file('file');
-        $token = $this->store->store($file);
+        $token = $this->store->store($file, [
+            'editor_token' => $editorToken,
+            'user_type' => $user instanceof Model ? $user::class : null,
+            'user_id' => $user?->getAuthIdentifier() !== null ? (string) $user->getAuthIdentifier() : null,
+            'tenant' => FilamentTenantContext::serialize(),
+            'original_name' => $file->getClientOriginalName(),
+        ]);
 
         try {
             $headers = $this->reader->headers($token);

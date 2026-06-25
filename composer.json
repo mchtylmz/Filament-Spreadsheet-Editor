@@ -53,10 +53,12 @@
             "@format:test",
             "@analyse",
             "@test",
+            "@frontend:test",
             "@build"
         ],
         "format": "pint src config routes tests database/migrations demo",
         "format:test": "pint --test src config routes tests database/migrations demo",
+        "frontend:test": "npm test",
         "test": "pest"
     },
     "extra": {

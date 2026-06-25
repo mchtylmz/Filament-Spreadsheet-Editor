@@ -19,6 +19,6 @@ class PreviewSpreadsheetCsvImportController
 
         abort_if($editor === null, 404);
 
-        return response()->json($preview($editor, $request, $request->user()));
+        return response()->json($preview($editor, $request, $request->user(), $token));
     }
 }

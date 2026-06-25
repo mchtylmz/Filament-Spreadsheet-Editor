@@ -57,9 +57,11 @@ it('keeps package write routes behind web auth middleware for csrf protection', 
         'filament-spreadsheet-editor.csv.import.apply',
     ] as $routeName) {
         $middleware = Route::getRoutes()->getByName($routeName)?->gatherMiddleware() ?? [];
+        $spreadsheetMiddleware = app('router')->getMiddlewareGroups()['filament-spreadsheet-editor'] ?? [];
 
-        expect($middleware)->toContain('web')
-            ->and($middleware)->toContain('auth');
+        expect($middleware)->toContain('filament-spreadsheet-editor')
+            ->and($spreadsheetMiddleware)->toContain('web')
+            ->and($spreadsheetMiddleware)->toContain('auth');
     }
 });
 

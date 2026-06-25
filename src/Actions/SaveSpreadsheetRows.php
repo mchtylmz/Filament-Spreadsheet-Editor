@@ -20,11 +20,14 @@ use Mivento\FilamentSpreadsheetEditor\Models\SpreadsheetCellAudit;
 
 class SaveSpreadsheetRows
 {
+    protected mixed $spreadsheetTenant = null;
+
     /**
      * @return array<string, mixed>
      */
     public function __invoke(SpreadsheetEditor $editor, Request $request, ?Authenticatable $user): array
     {
+        $this->spreadsheetTenant = $request->attributes->get('_spreadsheet_tenant');
         $changes = $request->input('changes', []);
 
         abort_unless(is_array($changes), 422, 'Spreadsheet changes must be an array.');
@@ -327,7 +330,11 @@ class SaveSpreadsheetRows
      */
     protected function rulesForColumn(SpreadsheetEditor $editor, SpreadsheetColumn $column, Model $record): array
     {
-        return array_map(function (string $rule) use ($column, $editor, $record): mixed {
+        return array_map(function (mixed $rule) use ($column, $editor, $record): mixed {
+            if (! is_string($rule)) {
+                return $rule;
+            }
+
             if ($rule !== 'unique' && ! str_starts_with($rule, 'unique:')) {
                 return $rule;
             }
@@ -412,6 +419,10 @@ class SaveSpreadsheetRows
 
     protected function currentFilamentTenant(): mixed
     {
+        if ($this->spreadsheetTenant !== null) {
+            return $this->spreadsheetTenant;
+        }
+
         if (! class_exists(Filament::class)) {
             return null;
         }

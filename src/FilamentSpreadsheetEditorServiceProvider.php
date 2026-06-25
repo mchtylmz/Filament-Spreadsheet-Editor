@@ -2,6 +2,10 @@
 
 namespace Mivento\FilamentSpreadsheetEditor;
 
+use Filament\Support\Assets\Css;
+use Filament\Support\Assets\Js;
+use Filament\Support\Facades\FilamentAsset;
+use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Blade;
 use Mivento\FilamentSpreadsheetEditor\Contracts\GridAdapter;
 use Mivento\FilamentSpreadsheetEditor\GridAdapters\TabulatorGridAdapter;
@@ -25,6 +29,13 @@ class FilamentSpreadsheetEditorServiceProvider extends PackageServiceProvider
     {
         $this->app->scoped(SpreadsheetEditorRegistry::class);
 
+        $this->app->afterResolving(Router::class, function (Router $router): void {
+            $router->middlewareGroup(
+                'filament-spreadsheet-editor',
+                config('filament-spreadsheet-editor.routes.base_middleware', ['web', 'auth']),
+            );
+        });
+
         $this->app->bind(GridAdapter::class, function (): GridAdapter {
             $adapter = config('filament-spreadsheet-editor.grid.adapter', 'tabulator');
 
@@ -37,6 +48,11 @@ class FilamentSpreadsheetEditorServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
+        FilamentAsset::register([
+            Js::make('spreadsheet-editor', __DIR__.'/../dist/spreadsheet-editor.js')->module(),
+            Css::make('spreadsheet-editor-style', __DIR__.'/../dist/spreadsheet-editor-style.css'),
+        ], 'mivento/filament-spreadsheet-editor');
+
         Blade::anonymousComponentPath(
             __DIR__.'/../resources/views/components',
             'filament-spreadsheet-editor',

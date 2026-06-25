@@ -27,6 +27,8 @@ class SpreadsheetEditor implements Arrayable
 
     protected ?Closure $tenantQueryCallback = null;
 
+    protected bool $requiresTenant = false;
+
     protected ?string $importUniqueColumn = null;
 
     protected bool $selectableRows = true;
@@ -98,6 +100,18 @@ class SpreadsheetEditor implements Arrayable
         return $this;
     }
 
+    public function requiresTenant(bool $condition = true): static
+    {
+        $this->requiresTenant = $condition;
+
+        return $this;
+    }
+
+    public function tenantScoped(bool $condition = true): static
+    {
+        return $this->requiresTenant($condition);
+    }
+
     public function importUniqueColumn(?string $column): static
     {
         $this->importUniqueColumn = $column;
@@ -160,6 +174,11 @@ class SpreadsheetEditor implements Arrayable
         return $this->tenantQueryCallback;
     }
 
+    public function requiresTenantContext(): bool
+    {
+        return $this->requiresTenant;
+    }
+
     public function getImportUniqueColumn(): ?string
     {
         return $this->importUniqueColumn;
@@ -208,6 +227,10 @@ class SpreadsheetEditor implements Arrayable
      */
     public function applyTenantQuery(Builder $query, mixed $tenant): Builder
     {
+        if ($this->requiresTenant && $tenant === null) {
+            abort(403, 'Spreadsheet editor requires a Filament tenant context.');
+        }
+
         if ($this->tenantQueryCallback === null || $tenant === null) {
             return $query;
         }
@@ -227,7 +250,7 @@ class SpreadsheetEditor implements Arrayable
     }
 
     /**
-     * @return array<string, array<int, string>>
+     * @return array<string, array<int, mixed>>
      */
     public function validationRules(): array
     {
@@ -246,7 +269,7 @@ class SpreadsheetEditor implements Arrayable
         return array_map(
             fn (SpreadsheetColumn $column): array => [
                 'attribute' => $column->getName(),
-                'rules' => $this->resolveRulesForColumn($column),
+                'rules' => $this->resolveSerializableRulesForColumn($column),
             ],
             $this->columns,
         );
@@ -302,6 +325,7 @@ class SpreadsheetEditor implements Arrayable
             'hasQueryCallback' => $this->queryCallback !== null,
             'hasAuthorizationCallback' => $this->authorizationCallback !== null,
             'hasTenantQueryCallback' => $this->tenantQueryCallback !== null,
+            'requiresTenant' => $this->requiresTenant,
             'importUniqueColumn' => $this->importUniqueColumn,
         ];
     }
@@ -348,11 +372,15 @@ class SpreadsheetEditor implements Arrayable
     }
 
     /**
-     * @return array<int, string>
+     * @return array<int, mixed>
      */
     protected function resolveRulesForColumn(SpreadsheetColumn $column): array
     {
-        return array_map(function (string $rule) use ($column): string {
+        return array_map(function (mixed $rule) use ($column): mixed {
+            if (! is_string($rule)) {
+                return $rule;
+            }
+
             if ($rule !== 'unique' || $this->model === null) {
                 return $rule;
             }
@@ -361,5 +389,16 @@ class SpreadsheetEditor implements Arrayable
 
             return 'unique:'.$model->getTable().','.$column->getName();
         }, $column->getRules());
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function resolveSerializableRulesForColumn(SpreadsheetColumn $column): array
+    {
+        return array_values(array_filter(
+            $this->resolveRulesForColumn($column),
+            fn (mixed $rule): bool => is_string($rule),
+        ));
     }
 }

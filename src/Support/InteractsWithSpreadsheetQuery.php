@@ -11,6 +11,8 @@ use Mivento\FilamentSpreadsheetEditor\Builders\SpreadsheetEditor;
 
 trait InteractsWithSpreadsheetQuery
 {
+    protected mixed $spreadsheetTenant = null;
+
     /**
      * @return Builder<Model>
      */
@@ -129,6 +131,10 @@ trait InteractsWithSpreadsheetQuery
 
     protected function currentFilamentTenant(): mixed
     {
+        if ($this->spreadsheetTenant !== null) {
+            return $this->spreadsheetTenant;
+        }
+
         if (! class_exists(Filament::class)) {
             return null;
         }

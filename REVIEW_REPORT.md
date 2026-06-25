@@ -6,152 +6,141 @@ Scope: Laravel package structure, Filament v5 compatibility, security posture, p
 
 ## Critical Issues
 
-1. Queued CSV imports lose user and tenant context.
+All critical issues from the previous review have been addressed in this pass.
 
-   `ProcessSpreadsheetCsvImport` only serializes the editor token, import token, mapping, and match mode, then calls `ApplySpreadsheetCsvImport::applyStored()` without a user or source request context (`src/Jobs/ProcessSpreadsheetCsvImport.php:15-39`). This means queued imports do not re-check user authorization at execution time, audit rows will not have the triggering user, and tenant scoping depends on `Filament::getTenant()` being available in a queue worker. That is risky for premium customers with multi-tenant panels or user-specific policies.
+1. Queued CSV imports lost user and tenant context.
 
-   Recommended fix: persist an import job record containing editor key, user id, panel id, tenant morph type/id, request metadata, and an authorization snapshot. Rehydrate the user and tenant in the job before applying rows, and fail safely when the tenant cannot be restored.
+   Status: Fixed.
 
-2. Package routes are not Filament panel aware by default.
+   Queued imports now carry user context, tenant context, IP address, and user agent metadata through `ProcessSpreadsheetCsvImport`. The job restores the user and tenant, re-checks authorization before applying rows, and fails safely when the tenant cannot be restored.
 
-   Routes are registered globally under `filament-spreadsheet-editor` with configurable middleware defaulting to `['web', 'auth']` (`routes/filament-spreadsheet-editor.php:10-27`). This protects basic Laravel auth, but it does not automatically inherit a Filament panel's auth guard, tenant middleware, panel path, or panel-specific middleware stack. For a Filament v5 plugin, this can produce confusing behavior in apps with multiple panels or non-default guards.
+2. Package routes were not Filament panel aware by default.
 
-   Recommended fix: register endpoints through the active Filament panel where possible, or provide a panel-aware route registration helper that uses the panel auth middleware and panel tenant middleware. At minimum, document exact middleware requirements for each panel and add tests for a non-default guard.
+   Status: Fixed.
 
-3. CSV import tokens are file-only tokens, not bound to an editor/user.
+   Package routes now use a dynamic `filament-spreadsheet-editor` middleware group. `SpreadsheetEditorPlugin::register()` updates that group from the registered panel middleware, auth middleware, and tenant middleware when `routes.use_panel_middleware` is enabled.
 
-   The preview endpoint stores an uploaded CSV using a UUID token, and the apply endpoint accepts that token if the file exists (`src/Actions/ApplySpreadsheetCsvImport.php:40-49`). The token has good entropy and path validation, but it is not associated with the editor token, the authenticated user, the tenant, or an expiration policy. A leaked token could be replayed by another authorized user against a compatible editor mapping.
+3. CSV import tokens were file-only tokens.
 
-   Recommended fix: store import metadata beside the file or in a database table/cache entry: editor token/key, user id, tenant id, original filename, created timestamp, expiry, and consumed state. Verify all metadata before apply and delete expired previews.
+   Status: Fixed.
+
+   CSV preview now writes sidecar metadata for the editor token, authenticated user, current tenant, original filename, creation time, expiry, and consumed state. Apply requests validate metadata before processing, and import tokens are deleted after successful application.
 
 ## Recommended Fixes
 
 1. Register and test Filament assets using the Filament asset pipeline.
 
-   The service provider publishes built assets and source assets (`src/FilamentSpreadsheetEditorServiceProvider.php:45-52`), but it does not register JS/CSS with Filament's asset manager. Customers may install the plugin, register it in a PanelProvider, and still miss runtime assets unless they manually include them.
+   Status: Fixed.
 
-   Fix: add Filament asset registration in `packageBooted()` or plugin boot, then document the publish/build path only as an override for custom builds.
+   Built JavaScript and CSS are registered through `FilamentAsset` under the package name `mivento/filament-spreadsheet-editor`, while publish tags remain available for customers who want physical assets.
 
 2. Add JavaScript tests to CI.
 
-   The package has JS tests and an `npm test` script, but GitHub Actions only runs `npm ci` and `npm run build` (`.github/workflows/ci.yml:38-48`). Frontend behavior such as undo/redo, save result handling, and shortcut behavior can regress without CI catching it.
+   Status: Fixed.
 
-   Fix: add `npm test` to CI and optionally to `composer ci` through the existing `build` script chain or a separate `frontend:test` script.
+   CI now runs `npm test`, and `composer ci` includes `@frontend:test` before the Vite build.
 
 3. Expand CI compatibility matrix.
 
-   CI currently runs only PHP 8.2 (`.github/workflows/ci.yml:7-19`). The package advertises PHP 8.2+, Laravel 11/12, Filament v5, and Livewire v4, but there is no matrix covering PHP 8.3/8.4, Laravel 11 vs 12, or dependency lowest-stable installs.
+   Status: Fixed.
 
-   Fix: add a matrix for PHP 8.2/8.3/8.4 and Laravel 11/12 constraints, plus a lowest dependency job if package-tooling time permits.
+   GitHub Actions now runs a PHP/Laravel matrix for PHP 8.2 with Laravel 11 and PHP 8.3/8.4 with Laravel 12.
 
 4. Harden audit model mass assignment.
 
-   `SpreadsheetCellAudit` uses `$guarded = []`. The current package writes audit rows internally with explicit fields, so this is not immediately exploitable, but premium packages should avoid an unsafe-looking audit model by default.
+   Status: Fixed.
 
-   Fix: replace `$guarded = []` with an explicit `$fillable` list for audit columns.
+   `SpreadsheetCellAudit` now uses an explicit `$fillable` list instead of `$guarded = []`.
 
 5. Make validation rule support more Laravel-native.
 
-   `SpreadsheetColumn` stores validation rules as strings only. That keeps frontend serialization simple, but Laravel customers will expect support for `Rule` objects, custom rule classes, nullable arrays, and per-row dynamic rules.
+   Status: Fixed.
 
-   Fix: split server rules from serializable frontend hints. Accept `string|Rule|array` on the PHP API and serialize only safe client-readable metadata.
+   `SpreadsheetColumn` now accepts string rules and Laravel validation rule objects. Server-side validation keeps object rules, while frontend serialization only exposes safe string rules.
 
 6. Improve transaction semantics for batch events.
 
-   `SpreadsheetCellUpdated` and `SpreadsheetBatchUpdated` are dispatched inside the database transaction. If external listeners perform side effects and the transaction later rolls back, listeners can observe changes that were not committed.
+   Status: Fixed.
 
-   Fix: either document that events are in-transaction or dispatch after commit with Laravel's after-commit event behavior.
+   `SpreadsheetCellUpdated` and `SpreadsheetBatchUpdated` now implement `ShouldDispatchAfterCommit`. `SpreadsheetCellUpdating` remains in-transaction so listeners can still prevent a write before it is committed.
 
 7. Add an explicit tenant safety mode.
 
-   Tenant scoping is available through `tenantQuery()`, but nothing warns if a registered editor for a tenant-owned model omits it. Documentation notes this, but the runtime cannot distinguish safe global editors from forgotten tenant scope.
+   Status: Fixed.
 
-   Fix: add optional `requiresTenant()` or `tenantScoped()` API that fails closed when Filament tenancy is active but no tenant scope has been applied.
+   `SpreadsheetEditor` now supports `requiresTenant()` and the alias `tenantScoped()`. Tenant-required editors fail closed when no Filament tenant context is available.
 
 8. Improve release artifact checks.
 
-   Built files in `dist/` are committed, but CI does not verify that `npm run build` leaves no diff. This can ship stale assets.
+   Status: Fixed.
 
-   Fix: after `npm run build`, run `git diff --exit-code dist package-lock.json` in CI.
+   CI now verifies that `npm run build` leaves committed `dist/` assets current by running `git diff --exit-code dist package-lock.json`.
 
 ## Nice-To-Have Improvements
 
+These remain intentionally unimplemented because they are larger product/API decisions or were outside the requested critical/high-priority fix scope.
+
 1. Add a formal adapter registry.
-
-   `GridAdapter` exists, but adapter resolution is currently a simple config match for Tabulator. A `GridAdapterManager` or container-tagged adapter registry would make AG Grid support cleaner.
-
-2. Add richer column APIs.
-
-   Useful premium APIs would include `money()`, `enum()`, `select()`, `relationshipLabel()`, `hidden()`, `visible()`, `width()`, `frozen()`, `formatStateUsing()`, and `dehydrateStateUsing()`.
-
-3. Add per-operation authorization hooks.
-
-   A single `authorize()` callback is simple, but real admin panels often need `authorizeView`, `authorizeUpdate`, `authorizeImport`, and `authorizeExport`.
-
-4. Add observability hooks for imports.
-
-   CSV import would benefit from import-started/import-finished/import-failed events, stored row error reports, and a Filament notification integration.
-
-5. Add browser-level smoke tests.
-
-   Unit-level JS tests are good, but a small Playwright smoke test would catch missing Alpine registration, missing assets, and Tabulator mount failures.
-
-6. Add a license extension contract.
-
-   Documentation mentions a license validation extension, but there is not yet a concrete contract or service binding for marketplace licensing.
-
-7. Add SECURITY.md links from README and docs.
-
-   `SECURITY.md` exists, but the package docs should route paid customers to the disclosure process more directly.
-
-8. Add migration customization notes.
-
-   Audit migration is straightforward, but enterprise customers may need a custom connection, table name, UUID model ids, or pruning strategy.
+2. Add richer column APIs such as `money()`, `enum()`, `select()`, `hidden()`, `width()`, and formatter/dehydration hooks.
+3. Add per-operation authorization hooks such as `authorizeView`, `authorizeUpdate`, `authorizeImport`, and `authorizeExport`.
+4. Add observability hooks for import started, finished, and failed states.
+5. Add browser-level smoke tests for Alpine, Tabulator, and asset loading.
+6. Add a license extension contract and marketplace license validation service binding.
+7. Add more direct SECURITY.md links throughout customer-facing docs.
+8. Add migration customization notes for connection, table name, UUID model ids, and pruning.
 
 ## Area Notes
 
 ### Filament v5 Compatibility
 
-The package implements `Filament\Contracts\Plugin` and exposes the requested fluent plugin API. The biggest compatibility concern is not the plugin class itself; it is route and asset integration. A premium Filament plugin should feel panel-native after `->plugin(SpreadsheetEditorPlugin::make())`.
+The plugin remains compatible with `Filament\Contracts\Plugin` and now behaves more like a panel-native package by registering assets with `FilamentAsset` and adopting the panel middleware stack through a dynamic middleware group.
 
 ### Laravel Package Structure
 
-The package structure is clean: service provider, config, routes, migrations, views, assets, tests, docs, and demo stubs are present. `spatie/laravel-package-tools` usage is appropriate. The package should still add stronger release checks for generated `dist/` files and broader framework matrices.
+The package structure remains clean and conventional. The service provider now registers route middleware and Filament assets while keeping publish tags for config, migrations, compiled assets, and source assets.
 
 ### Security Risks
 
-The project already avoids arbitrary model class names from requests, gates fields by configured columns, validates writes server-side, escapes CSV formula-like text, and applies audit redaction. The remaining high-risk areas are queued import identity/tenant context, file token ownership, and panel-aware middleware.
+The highest-risk issues have been reduced: import tokens are metadata-bound, queued imports restore user and tenant context, writes remain authorized, arbitrary model input is not accepted, and only configured columns are readable/writable. Remaining security work is mostly product hardening around richer per-operation authorization and long-running import observability.
 
 ### Public API Ergonomics
 
-The builder API is pleasant and close to Filament conventions. It is currently intentionally narrow. For a paid plugin, customers will soon ask for richer column types, dynamic server rules, per-operation authorization, and adapter-independent display options.
+The public API remains compact. `requiresTenant()` gives customers a clear fail-closed option for tenant-owned editors, and validation rule objects make the column API closer to Laravel expectations without leaking complex objects to frontend config.
 
 ### Test Coverage Gaps
 
-There is meaningful Pest coverage for builders, backend loading, saving, CSV import/export, audit logging, and security behavior. Missing coverage is mostly integration-shaped: real Filament panel guards, panel tenancy middleware, queued import rehydration, JS tests in CI, browser smoke tests, and Laravel/Filament/Livewire version matrices.
+New tests cover import token ownership, queued import user/tenant context, panel middleware registration, Filament asset registration, tenant-required editors, and server-only validation rules. Remaining useful coverage would be browser-level smoke tests and more multi-panel/non-default guard scenarios.
 
 ### Premium Distribution Readiness
 
-The package is credible for an early private beta. Before marketplace release, it needs panel-native asset/route behavior, licensing hooks, import job hardening, CI matrix coverage, and clear support boundaries.
+The package is closer to premium beta readiness after this pass. Before a public marketplace launch, the biggest remaining product decisions are license validation, adapter registry extensibility, richer column APIs, import observability, and browser smoke tests.
 
 ### Documentation Gaps
 
-README and docs are now broad and customer-friendly. Remaining gaps are mainly operational: non-default guards, multi-panel setup, queued import worker requirements, tenant rehydration limits, asset loading behavior, stale `dist/` troubleshooting, audit pruning, and license integration examples.
+README and docs now mention panel-aware middleware, import token expiry/metadata, queued import context, and `requiresTenant()`. Remaining docs should expand license integration, non-default guard examples, and audit pruning.
 
 ### Frontend Build Issues
 
-The Vite build is present and assets are committed. JS tests exist but are not enforced in CI. There is also no automated check that committed `dist/` files match the current source.
+JavaScript tests now run in CI and local `composer ci`. CI also verifies committed `dist/` assets after `npm run build`.
 
 ### Migration Safety
 
-The audit table migration is simple and publishable. For release, consider table-name configuration, connection configuration, index review for large audit tables, pruning guidance, and explicit `$fillable` on the audit model.
+Audit migration remains simple and publishable. The audit model now uses explicit fillable fields. Future releases should still consider configurable table names, custom connections, and pruning guidance.
 
 ### Multi-Tenancy Risks
 
-Read/write actions call `tenantQuery()` with `Filament::getTenant()`, which is a good start. The main tenant risk is queued work, where the Filament tenant is not naturally available. The second risk is developer omission: tenant-owned editors are safe only if the customer remembers to define `tenantQuery()`.
+Tenant-owned editors can now call `requiresTenant()` to fail closed. Queued imports carry and restore tenant context. The remaining risk is customer omission of `tenantQuery()` on models that need tenant scoping, so docs continue to emphasize it.
 
 ## Release Readiness Score
 
-Score: 74 / 100
+Score: 86 / 100
 
-Rationale: The package has a strong skeleton, clear public API, real backend behavior, security-minded tests, audit support, CSV import/export, modern docs, and a working frontend build. It is not yet marketplace-ready because panel-native routing/assets, queued import identity and tenancy, CI matrix depth, JS test enforcement, and licensing extension points still need hardening.
+Rationale: Critical security and distribution concerns are now addressed, CI is stronger, assets are panel-aware, and tenant-sensitive import flows are safer. The package still needs licensing, richer API polish, deeper browser testing, and import observability before a full premium marketplace launch.
+
+## Verification Run
+
+- `composer ci`: passed.
+- `npm test`: passed.
+- `vendor/bin/pest tests/Feature/SecurityHardeningTest.php tests/Feature/ServiceProviderTest.php`: passed.
+- `composer test`: passed, 59 tests and 356 assertions.
+- `vendor/bin/phpstan analyse --memory-limit=512M`: passed.

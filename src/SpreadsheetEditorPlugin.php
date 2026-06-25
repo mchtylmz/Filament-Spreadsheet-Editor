@@ -4,6 +4,7 @@ namespace Mivento\FilamentSpreadsheetEditor;
 
 use Filament\Contracts\Plugin;
 use Filament\Panel;
+use Illuminate\Routing\Router;
 
 class SpreadsheetEditorPlugin implements Plugin
 {
@@ -28,6 +29,19 @@ class SpreadsheetEditorPlugin implements Plugin
             'filament-spreadsheet-editor.csv_import_enabled' => $this->hasCsvImportEnabled(),
             'filament-spreadsheet-editor.csv_export_enabled' => $this->hasCsvExportEnabled(),
         ]);
+
+        if ((bool) config('filament-spreadsheet-editor.routes.use_panel_middleware', true)) {
+            $middleware = [
+                ...$panel->getMiddleware(),
+                ...$panel->getAuthMiddleware(),
+                ...($panel->hasTenancy() ? $panel->getTenantMiddleware() : []),
+            ];
+
+            app(Router::class)->middlewareGroup(
+                'filament-spreadsheet-editor',
+                array_values(array_unique($middleware)),
+            );
+        }
     }
 
     public function boot(Panel $panel): void

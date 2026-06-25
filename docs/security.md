@@ -31,10 +31,13 @@ Only configured columns can be returned or changed. Writes also require the colu
 Default route middleware:
 
 ```php
-'middleware' => ['web', 'auth'],
+'middleware' => ['filament-spreadsheet-editor'],
+'use_panel_middleware' => true,
 ```
 
-Keep `web` enabled for CSRF protection. Keep `auth` enabled for authenticated Filament panel users.
+The plugin updates the `filament-spreadsheet-editor` middleware group from the registered Filament panel. This keeps package endpoints aligned with the panel middleware, auth middleware, and tenant middleware.
+
+If you override the route middleware, keep `web` enabled for CSRF protection and use the correct Filament panel auth guard.
 
 ## Tenant Scoping
 
@@ -42,9 +45,12 @@ Use `tenantQuery()` for tenant-owned models:
 
 ```php
 ->tenantQuery(fn ($query, $tenant) => $query->whereBelongsTo($tenant))
+->requiresTenant()
 ```
 
 The callback applies to row loading, saving, CSV export, CSV import lookup, and optimistic-lock checks.
+
+Use `requiresTenant()` for tenant-owned models that must fail closed when no Filament tenant context is available.
 
 ## CSV Formula Injection
 

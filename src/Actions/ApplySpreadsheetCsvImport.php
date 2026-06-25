@@ -3,6 +3,8 @@
 namespace Mivento\FilamentSpreadsheetEditor\Actions;
 
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Bus;
 use Mivento\FilamentSpreadsheetEditor\Builders\SpreadsheetColumn;
@@ -11,6 +13,7 @@ use Mivento\FilamentSpreadsheetEditor\Jobs\ProcessSpreadsheetCsvImport;
 use Mivento\FilamentSpreadsheetEditor\Support\CsvFormulaEscaper;
 use Mivento\FilamentSpreadsheetEditor\Support\CsvImportStore;
 use Mivento\FilamentSpreadsheetEditor\Support\CsvReader;
+use Mivento\FilamentSpreadsheetEditor\Support\FilamentTenantContext;
 use Mivento\FilamentSpreadsheetEditor\Support\InteractsWithSpreadsheetQuery;
 
 class ApplySpreadsheetCsvImport
@@ -45,6 +48,14 @@ class ApplySpreadsheetCsvImport
             return $this->globalError('The CSV import token or mapping is invalid.');
         }
 
+        $metadataError = $this->metadataError($importToken, $editorToken, $user);
+
+        if ($metadataError !== null) {
+            return $this->globalError($metadataError);
+        }
+
+        $metadata = $this->store->metadata($importToken) ?? [];
+        $tenant = FilamentTenantContext::restore(is_array($metadata['tenant'] ?? null) ? $metadata['tenant'] : null);
         $mappingError = $this->mappingError($editor, $importToken, $mapping, $matchBy);
 
         if ($mappingError !== null) {
@@ -67,6 +78,15 @@ class ApplySpreadsheetCsvImport
                 $importToken,
                 $mapping,
                 $matchBy,
+                is_array($metadata['user'] ?? null) ? $metadata['user'] : [
+                    'type' => $metadata['user_type'] ?? null,
+                    'id' => $metadata['user_id'] ?? null,
+                ],
+                is_array($metadata['tenant'] ?? null) ? $metadata['tenant'] : null,
+                [
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ],
             ));
 
             return [
@@ -76,7 +96,7 @@ class ApplySpreadsheetCsvImport
             ];
         }
 
-        return $this->applyStored($editor, $importToken, $mapping, $matchBy, $user, $request);
+        return $this->applyStored($editor, $importToken, $mapping, $matchBy, $user, $request, $tenant);
     }
 
     /**
@@ -90,6 +110,7 @@ class ApplySpreadsheetCsvImport
         string $matchBy,
         ?Authenticatable $user = null,
         ?Request $sourceRequest = null,
+        mixed $tenant = null,
     ): array {
         $model = $editor->getModel();
         abort_if($model === null, 422, 'Spreadsheet editor model is not configured.');
@@ -127,7 +148,7 @@ class ApplySpreadsheetCsvImport
                 continue;
             }
 
-            $record = $this->spreadsheetBaseQuery($editor)
+            $record = $this->spreadsheetBaseQueryForTenant($editor, $tenant)
                 ->where($matchField, $matchValue)
                 ->first();
 
@@ -170,6 +191,7 @@ class ApplySpreadsheetCsvImport
         ]);
         $validationRequest->attributes->set('_spreadsheet_pre_authorized', true);
         $validationRequest->attributes->set('_spreadsheet_validate_only', true);
+        $validationRequest->attributes->set('_spreadsheet_tenant', $tenant);
         $validation = ($this->saveRows)($editor, $validationRequest, null);
         $rowErrors = [
             ...$rowErrors,
@@ -195,6 +217,7 @@ class ApplySpreadsheetCsvImport
             ], fn (mixed $value): bool => $value !== null),
         );
         $saveRequest->attributes->set('_spreadsheet_pre_authorized', true);
+        $saveRequest->attributes->set('_spreadsheet_tenant', $tenant);
         $saved = ($this->saveRows)($editor, $saveRequest, $user);
 
         if ($saved['has_errors']) {
@@ -206,6 +229,7 @@ class ApplySpreadsheetCsvImport
             ];
         }
 
+        $this->store->markConsumed($importToken);
         $this->store->delete($importToken);
 
         return [
@@ -262,6 +286,58 @@ class ApplySpreadsheetCsvImport
         }
 
         return null;
+    }
+
+    protected function metadataError(
+        string $importToken,
+        string $editorToken,
+        ?Authenticatable $user,
+    ): ?string {
+        $metadata = $this->store->metadata($importToken);
+
+        if ($metadata === null) {
+            return 'The CSV import metadata is missing or invalid.';
+        }
+
+        if (($metadata['consumed'] ?? false) === true) {
+            return 'The CSV import token has already been consumed.';
+        }
+
+        if (is_string($metadata['expires_at'] ?? null) && now()->greaterThan($metadata['expires_at'])) {
+            return 'The CSV import token has expired.';
+        }
+
+        if (($metadata['editor_token'] ?? null) !== $editorToken) {
+            return 'The CSV import token does not belong to this spreadsheet editor.';
+        }
+
+        $expectedUserId = $metadata['user_id'] ?? null;
+
+        if ($expectedUserId !== null && (string) $user?->getAuthIdentifier() !== (string) $expectedUserId) {
+            return 'The CSV import token does not belong to the authenticated user.';
+        }
+
+        if (is_array($metadata['tenant'] ?? null) && ! FilamentTenantContext::matchesCurrent($metadata['tenant'])) {
+            return 'The CSV import token does not belong to the current tenant.';
+        }
+
+        return null;
+    }
+
+    /**
+     * @return Builder<Model>
+     */
+    protected function spreadsheetBaseQueryForTenant(SpreadsheetEditor $editor, mixed $tenant): Builder
+    {
+        $model = $editor->getModel();
+
+        abort_if($model === null, 422, 'Spreadsheet editor model is not configured.');
+
+        /** @var Builder<Model> $query */
+        $query = $model::query();
+        $query = $editor->applyQuery($query);
+
+        return $editor->applyTenantQuery($query, $tenant);
     }
 
     /**

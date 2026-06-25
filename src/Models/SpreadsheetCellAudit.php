@@ -9,7 +9,18 @@ class SpreadsheetCellAudit extends Model
 {
     public const UPDATED_AT = null;
 
-    protected $guarded = [];
+    /** @var array<int, string> */
+    protected $fillable = [
+        'user_id',
+        'model_type',
+        'model_id',
+        'field',
+        'old_value',
+        'new_value',
+        'batch_uuid',
+        'ip_address',
+        'user_agent',
+    ];
 
     protected function casts(): array
     {

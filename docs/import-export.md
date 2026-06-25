@@ -49,6 +49,8 @@ Preview returns:
 - import token
 - available configured columns
 
+The import token is bound to the registered editor, authenticated user when available, current Filament tenant, and an expiry window controlled by `import_ttl_minutes`.
+
 Apply payload:
 
 ```json
@@ -74,3 +76,5 @@ All rows are validated before updates are applied. Row-level errors include the 
 ## Queued Imports
 
 When row count exceeds `max_sync_import_rows`, the frontend can request queued processing by sending `"queue": true`.
+
+Queued imports carry the original user, tenant, IP address, and user agent context. The queued job re-checks authorization before applying rows and fails if the tenant can no longer be restored.
