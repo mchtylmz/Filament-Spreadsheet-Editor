@@ -1,5 +1,5 @@
 {
-    "name": "mivento/filament-spreadsheet-editor",
+    "name": "mchtylmz/filament-spreadsheet-editor",
     "description": "A Filament v5 plugin that provides an Excel-like spreadsheet editor for Eloquent models.",
     "type": "library",
     "license": "MIT",

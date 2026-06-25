@@ -1,6 +1,6 @@
 # CSV Import and Export
 
-CSV features are premium workflows intended for operational data management.
+CSV features are included for operational data management workflows.
 
 ## Enable Features
 

@@ -13,7 +13,7 @@ Filament Spreadsheet Editor is distributed as a Laravel package for Filament v5 
 ## Install the Package
 
 ```bash
-composer require mivento/filament-spreadsheet-editor
+composer require mchtylmz/filament-spreadsheet-editor
 ```
 
 ## Publish Configuration

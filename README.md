@@ -1,12 +1,12 @@
 # Filament Spreadsheet Editor
 
-Premium Excel-like editing for Filament v5 panels, powered by Eloquent, Livewire v4, Alpine.js, Vite, and a grid-adapter architecture that starts with Tabulator and leaves room for AG Grid.
+Excel-like editing for Filament v5 panels, powered by Eloquent, Livewire v4, Alpine.js, Vite, and a grid-adapter architecture that starts with Tabulator and leaves room for AG Grid.
 
 Filament Spreadsheet Editor helps teams edit operational data without leaving their admin panel: products, prices, stock, catalog metadata, tenant-scoped records, approval queues, and any Eloquent-backed dataset that benefits from fast spreadsheet workflows.
 
 ## Screenshots
 
-> Replace these placeholders with marketplace-optimized screenshots before publishing.
+> Replace these placeholders with polished product screenshots before publishing.
 
 | Spreadsheet editor | CSV import preview | Audit history |
 | --- | --- | --- |
@@ -27,25 +27,6 @@ Filament Spreadsheet Editor helps teams edit operational data without leaving th
 - Adapter contract for future grid implementations such as AG Grid.
 - Pest, PHPStan, Pint, Vite, and GitHub Actions CI included.
 
-## Free vs Pro
-
-| Capability | Free | Pro |
-| --- | ---: | ---: |
-| Filament plugin registration | Yes | Yes |
-| Spreadsheet builder API | Yes | Yes |
-| Tabulator frontend adapter | Basic | Advanced |
-| Editable Eloquent rows | Limited | Yes |
-| Server-side pagination/search/sort/filter | No | Yes |
-| Batch save with optimistic locking | No | Yes |
-| CSV export | No | Yes |
-| CSV import with preview and mapping | No | Yes |
-| Audit logging | No | Yes |
-| Sensitive audit redaction | No | Yes |
-| Tenant-aware query hook | No | Yes |
-| Priority support and commercial license | No | Yes |
-
-This repository represents the premium package skeleton and implementation. Adjust the table to match your final marketplace packaging.
-
 ## Requirements
 
 - PHP 8.2+
@@ -57,7 +38,7 @@ This repository represents the premium package skeleton and implementation. Adju
 ## Installation
 
 ```bash
-composer require mivento/filament-spreadsheet-editor
+composer require mchtylmz/filament-spreadsheet-editor
 ```
 
 Publish the configuration:
@@ -278,24 +259,6 @@ Sensitive fields are redacted by default:
 
 More detail: [docs/audit-log.md](docs/audit-log.md)
 
-## License Validation Extension
-
-This package is prepared for premium distribution. Add your marketplace or license-server integration around package boot or panel registration:
-
-```php
-SpreadsheetEditorPlugin::make()
-    ->defaultAdapter('tabulator');
-```
-
-Recommended extension points:
-
-- validate the license in your application service provider before registering premium editors
-- cache successful license checks
-- fail closed for write/import/export operations when the license is invalid
-- keep local development and CI license behavior deterministic
-
-More detail: [docs/license.md](docs/license.md)
-
 ## Configuration
 
 Key options in `config/filament-spreadsheet-editor.php`:
@@ -352,7 +315,6 @@ Add `tenantQuery()` to every editor whose model belongs to a tenant. For fail-cl
 - Saved grid views per user.
 - Import templates and downloadable CSV examples.
 - Optional queued export jobs for very large datasets.
-- Marketplace license validation package.
 
 ## FAQ
 
@@ -382,7 +344,6 @@ Not yet. The adapter contract exists so AG Grid can be added without changing th
 - [Import and Export](docs/import-export.md)
 - [Audit Log](docs/audit-log.md)
 - [Security](docs/security.md)
-- [License](docs/license.md)
 
 ## Development
 
@@ -401,7 +362,3 @@ composer format
 composer build
 npm test
 ```
-
-## License
-
-This package currently uses the MIT license placeholder in this repository. Replace it with your commercial license before marketplace distribution.
