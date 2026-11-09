@@ -1,5 +1,7 @@
 # Filament Spreadsheet Editor
 
+Current release: [v0.2.0](https://github.com/mchtylmz/Filament-Spreadsheet-Editor/releases/tag/v0.2.0). See the [changelog](CHANGELOG.md) for compatibility changes and upgrade instructions.
+
 Excel-like editing for Filament v5 panels, powered by Eloquent, Livewire v4, Alpine.js, Vite, and a grid-adapter architecture that starts with Tabulator and leaves room for AG Grid.
 
 Filament Spreadsheet Editor helps teams edit operational data without leaving their admin panel: products, prices, stock, catalog metadata, tenant-scoped records, approval queues, and any Eloquent-backed dataset that benefits from fast spreadsheet workflows.
