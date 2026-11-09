@@ -74,12 +74,17 @@ export class TabulatorSpreadsheetAdapter {
     }
 
     columns() {
-        return (this.config.columns ?? []).map((column) => ({
-            ...column,
-            editor: column.editable ? column.editor : false,
-            formatter: this.formatter(column),
-            cellEdited: (cell) => this.validateCell(cell, column),
-        }));
+        return (this.config.columns ?? []).map((column) => {
+            // Spreadsheet metadata is not part of Tabulator's column API.
+            const { type, searchable, validationRules, ...definition } = column;
+
+            return {
+                ...definition,
+                editor: column.editable ? column.editor : false,
+                formatter: this.formatter(column),
+                cellEdited: (cell) => this.validateCell(cell, column),
+            };
+        });
     }
 
     formatter(column) {

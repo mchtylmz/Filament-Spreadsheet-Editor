@@ -6,11 +6,13 @@ Filament Spreadsheet Editor helps teams edit operational data without leaving th
 
 ## Screenshots
 
-> Replace these placeholders with polished product screenshots before publishing.
+Demo previews (illustrative sample data):
 
-| Spreadsheet editor | CSV import preview | Audit history |
-| --- | --- | --- |
-| `demo/screenshots/product-spreadsheet-overview.png` | `demo/screenshots/product-spreadsheet-csv-import.png` | `demo/screenshots/product-spreadsheet-audit-dark.png` |
+![Spreadsheet editor](demo/screenshots/product-spreadsheet-overview.png)
+
+| CSV import preview | Audit history |
+| --- | --- |
+| ![CSV import preview](demo/screenshots/product-spreadsheet-csv-import.png) | ![Audit history](demo/screenshots/product-spreadsheet-audit-dark.png) |
 
 ## Features
 
@@ -29,11 +31,15 @@ Filament Spreadsheet Editor helps teams edit operational data without leaving th
 
 ## Requirements
 
-- PHP 8.2+
-- Laravel 11 or 12
+- PHP 8.2+ (PHP 8.3+ for Laravel 13)
+- Laravel 11, 12, or 13
 - Filament v5
 - Livewire v4
-- Node.js 20+ or 22+ for asset builds
+- Node.js 20.19+ or 22.12+ for asset builds
+
+Compatibility checked on November 9, 2026 with **Laravel 13.40.0, Filament 5.11.2, Livewire 4.4.8, and PHP 8.4**. Composer constraints also allow Laravel 11/12 and future compatible Filament 5 / Livewire 4 releases. CI covers Laravel 11 on PHP 8.2, and Laravel 12/13 on PHP 8.3 and 8.4.
+
+See the upstream release notes for [Filament 5.11.2](https://github.com/filamentphp/filament/releases/tag/v5.11.2) and [Livewire 4.4.8](https://github.com/livewire/livewire/releases/tag/v4.4.8).
 
 ## Installation
 
@@ -47,10 +53,10 @@ Publish the configuration:
 php artisan vendor:publish --tag=filament-spreadsheet-editor-config
 ```
 
-Publish compiled assets:
+Install the registered JavaScript and CSS through Filament's asset pipeline:
 
 ```bash
-php artisan vendor:publish --tag=filament-spreadsheet-editor-assets
+php artisan filament:assets
 ```
 
 Publish audit migrations only when audit logging is enabled:
@@ -100,49 +106,13 @@ Render the package component:
 </x-filament-panels::page>
 ```
 
-Define the editor:
+Register a named editor in `AppServiceProvider::boot()` so row loading, saving, and CSV actions can resolve it on every request:
 
 ```php
-namespace App\Filament\Pages;
+namespace App\Providers;
 
 use App\Models\Product;
-use Filament\Pages\Page;
 use Illuminate\Database\Eloquent\Builder;
-use Mivento\FilamentSpreadsheetEditor\SpreadsheetColumn;
-use Mivento\FilamentSpreadsheetEditor\SpreadsheetEditor;
-
-class ProductSpreadsheet extends Page
-{
-    protected static ?string $navigationIcon = 'heroicon-o-table-cells';
-
-    protected string $view = 'filament.pages.product-spreadsheet';
-
-    public function editor(): SpreadsheetEditor
-    {
-        return SpreadsheetEditor::make()
-            ->model(Product::class)
-            ->columns([
-                SpreadsheetColumn::make('sku')->label('SKU')->text()->required()->unique()->searchable(),
-                SpreadsheetColumn::make('name')->text()->required()->max(120)->searchable()->editable(),
-                SpreadsheetColumn::make('price')->numeric()->min(0)->editable(),
-                SpreadsheetColumn::make('stock')->integer()->min(0)->editable(),
-                SpreadsheetColumn::make('active')->boolean()->editable(),
-                SpreadsheetColumn::make('available_on')->date()->editable(),
-                SpreadsheetColumn::make('internal_cost')->numeric()->readOnly(),
-            ])
-            ->importUniqueColumn('sku')
-            ->query(fn (Builder $query): Builder => $query->where('active', true))
-            ->authorize(fn ($user): bool => $user?->can('manage products') === true);
-    }
-}
-```
-
-## Advanced Usage
-
-For backend row loading, saving, import, and export, define named editors during application boot. Named editors are resolved through a server-side registry token so requests never choose arbitrary model classes.
-
-```php
-use App\Models\Product;
 use Illuminate\Support\ServiceProvider;
 use Mivento\FilamentSpreadsheetEditor\SpreadsheetColumn;
 use Mivento\FilamentSpreadsheetEditor\SpreadsheetEditor;
@@ -155,25 +125,53 @@ class AppServiceProvider extends ServiceProvider
         $editors->define('products', fn () => SpreadsheetEditor::make()
             ->model(Product::class)
             ->columns([
-                SpreadsheetColumn::make('sku')->text()->searchable(),
-                SpreadsheetColumn::make('name')->text()->searchable()->editable(),
+                SpreadsheetColumn::make('sku')->label('SKU')->text()->required()->unique()->searchable(),
+                SpreadsheetColumn::make('name')->text()->required()->max(120)->searchable()->editable(),
                 SpreadsheetColumn::make('price')->numeric()->min(0)->editable(),
                 SpreadsheetColumn::make('stock')->integer()->min(0)->editable(),
+                SpreadsheetColumn::make('active')->boolean()->editable(),
+                SpreadsheetColumn::make('available_on')->date()->editable(),
+                SpreadsheetColumn::make('internal_cost')->numeric()->readOnly(),
             ])
             ->importUniqueColumn('sku')
-            ->tenantQuery(fn ($query, $tenant) => $query->whereBelongsTo($tenant))
-            ->authorize(fn ($user) => $user?->can('manage products') === true));
+            ->query(fn (Builder $query): Builder => $query->where('active', true))
+            ->authorize(fn ($user): bool => $user?->can('manage products') === true));
     }
 }
 ```
 
-Resolve the registered editor in your page:
+Resolve that named editor from the Filament page:
 
 ```php
-public function editor(): SpreadsheetEditor
+namespace App\Filament\Pages;
+
+use BackedEnum;
+use Filament\Pages\Page;
+use Mivento\FilamentSpreadsheetEditor\SpreadsheetEditor;
+use Mivento\FilamentSpreadsheetEditor\Support\SpreadsheetEditorRegistry;
+
+class ProductSpreadsheet extends Page
 {
-    return app(SpreadsheetEditorRegistry::class)->editor('products');
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-table-cells';
+
+    protected string $view = 'filament.pages.product-spreadsheet';
+
+    public function editor(): SpreadsheetEditor
+    {
+        return app(SpreadsheetEditorRegistry::class)->editor('products');
+    }
 }
+```
+
+Configure the `manage products` permission in your application, or replace the authorization callback with your existing policy check. Column names must match your model's attributes. Unregistered editor instances are intended for local/demo data and do not persist changes to Eloquent.
+
+## Tenant-Scoped Editors
+
+For tenant-owned models, add these calls to the registered editor definition. The example assumes the model has a relationship to the Filament tenant:
+
+```php
+->tenantQuery(fn ($query, $tenant) => $query->whereBelongsTo($tenant))
+->requiresTenant()
 ```
 
 ## Authorization
@@ -290,6 +288,9 @@ Use a named editor from `SpreadsheetEditorRegistry`. Raw editor instances run in
 **POST requests fail with 419.**
 Keep the default `filament-spreadsheet-editor` middleware group or include `web` in your custom middleware. The bundled JavaScript reads the CSRF token from standard Laravel page metadata.
 
+**The console reports `Invalid column definition option` for `type`, `searchable`, or `validationRules`.**
+Update to a package revision containing the fix for [#1](https://github.com/mchtylmz/Filament-Spreadsheet-Editor/issues/1), run `php artisan filament:assets`, and refresh the browser cache. The Tabulator adapter keeps spreadsheet metadata separate from Tabulator's column options.
+
 **CSV import updates no rows.**
 Check the mapping, `match_by`, and `->importUniqueColumn('sku')` configuration.
 
@@ -302,10 +303,12 @@ Add `tenantQuery()` to every editor whose model belongs to a tenant. For fail-cl
 ## Upgrade Notes
 
 - Keep PHP, Laravel, Filament, and Livewire versions aligned with the requirements above.
-- Re-publish assets after upgrading frontend code.
+- Run `php artisan filament:assets` after updating the package so Filament serves the current compiled assets.
 - Review `config/filament-spreadsheet-editor.php` for new security or feature flags.
 - Run `composer ci` locally before upgrading production apps.
 - Watch release notes for adapter-level changes when AG Grid support is introduced.
+
+Laravel 13 requires PHP 8.3+. Package contributors testing Laravel 13 use Testbench 11 and Pest 4; older Laravel/PHP combinations retain compatible test dependency ranges. When extending Filament pages, match the current property types, including `string|BackedEnum|null` for `$navigationIcon`.
 
 ## Roadmap
 

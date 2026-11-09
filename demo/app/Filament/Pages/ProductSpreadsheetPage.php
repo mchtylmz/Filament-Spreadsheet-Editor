@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\Product;
+use BackedEnum;
 use Filament\Pages\Page;
 use Illuminate\Database\Eloquent\Builder;
 use Mivento\FilamentSpreadsheetEditor\SpreadsheetColumn;
@@ -10,7 +11,7 @@ use Mivento\FilamentSpreadsheetEditor\SpreadsheetEditor;
 
 class ProductSpreadsheetPage extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-table-cells';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-table-cells';
 
     protected static ?string $navigationLabel = 'Product spreadsheet';
 

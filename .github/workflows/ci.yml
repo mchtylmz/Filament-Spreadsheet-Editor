@@ -24,6 +24,14 @@ jobs:
             laravel: 'laravel-12'
             laravel_constraint: '^12.0'
             testbench_constraint: '^10.0'
+          - php: '8.3'
+            laravel: 'laravel-13'
+            laravel_constraint: '^13.0'
+            testbench_constraint: '^11.0'
+          - php: '8.4'
+            laravel: 'laravel-13'
+            laravel_constraint: '^13.0'
+            testbench_constraint: '^11.0'
 
     steps:
       - name: Checkout

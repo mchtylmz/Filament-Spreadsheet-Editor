@@ -4,11 +4,13 @@ Filament Spreadsheet Editor is distributed as a Laravel package for Filament v5 
 
 ## Requirements
 
-- PHP 8.2+
-- Laravel 11 or 12
+- PHP 8.2+ (PHP 8.3+ for Laravel 13)
+- Laravel 11, 12, or 13
 - Filament v5
 - Livewire v4
-- Node.js 20+ or 22+ when building package assets
+- Node.js 20.19+ or 22.12+ when building package assets
+
+The current compatibility check uses Laravel 13.40.0, Filament 5.11.2, Livewire 4.4.8, and PHP 8.4. The package's Filament 5 and Livewire 4 constraints already accept these releases.
 
 ## Install the Package
 
@@ -44,8 +46,10 @@ public function panel(Panel $panel): Panel
 ## Publish Assets
 
 ```bash
-php artisan vendor:publish --tag=filament-spreadsheet-editor-assets
+php artisan filament:assets
 ```
+
+Run this again after package upgrades. If your application separately serves the published `public/vendor/filament-spreadsheet-editor` copies, refresh those with `php artisan vendor:publish --tag=filament-spreadsheet-editor-assets --force` as well.
 
 When developing the package itself:
 
@@ -71,4 +75,4 @@ Create a Filament page and render:
 <x-filament-spreadsheet-editor::spreadsheet-editor :editor="$this->editor()" />
 ```
 
-Then define `editor()` on the page class using `SpreadsheetEditor::make()`.
+Register a named editor with `SpreadsheetEditorRegistry::define()` during application boot, then return `app(SpreadsheetEditorRegistry::class)->editor('products')` from the page's `editor()` method. See the complete [Basic Usage example](../README.md#basic-usage). Unregistered `SpreadsheetEditor::make()` instances use local/demo data and do not expose backend load/save endpoints.

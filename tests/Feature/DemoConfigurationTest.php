@@ -1,6 +1,16 @@
 <?php
 
+use Filament\Pages\Page;
 use Mivento\FilamentSpreadsheetEditor\Tests\Fixtures\ProductSpreadsheetPage;
+
+it('loads the documented demo page with the current filament page contract', function (): void {
+    require_once __DIR__.'/../../demo/app/Filament/Pages/ProductSpreadsheetPage.php';
+
+    $page = App\Filament\Pages\ProductSpreadsheetPage::class;
+
+    expect(is_subclass_of($page, Page::class))->toBeTrue()
+        ->and($page::getNavigationIcon())->toBe('heroicon-o-table-cells');
+});
 
 it('exposes a complete demo spreadsheet configuration', function (): void {
     $editor = app(ProductSpreadsheetPage::class)->editor();
