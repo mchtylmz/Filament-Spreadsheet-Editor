@@ -5,12 +5,14 @@ Filament Spreadsheet Editor is distributed as a Laravel package for Filament v5 
 ## Requirements
 
 - PHP 8.2+ (PHP 8.3+ for Laravel 13)
-- Laravel 11, 12, or 13
+- Laravel 12.69+ or 13.30+
 - Filament v5
 - Livewire v4
 - Node.js 20.19+ or 22.12+ when building package assets
 
 The current compatibility check uses Laravel 13.40.0, Filament 5.11.2, Livewire 4.4.8, and PHP 8.4. The package's Filament 5 and Livewire 4 constraints already accept these releases.
+
+Laravel 11 is no longer supported. Upgrade existing Laravel 11 applications before installing this revision. Dependency security checks remain enabled, and CI audits the installed dependency set on every supported PHP/Laravel combination.
 
 ## Install the Package
 

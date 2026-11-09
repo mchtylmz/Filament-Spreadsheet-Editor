@@ -6,7 +6,8 @@ All notable changes to `mivento/filament-spreadsheet-editor` will be documented 
 
 ## 0.1.0 - Unreleased
 
-- Added Laravel 13 support with Testbench 11 and Pest 4 compatibility and PHP 8.3/8.4 CI coverage, retaining Laravel 11/12 support.
+- Added Laravel 13 support with Testbench 11 and Pest 4 compatibility and PHP 8.3/8.4 CI coverage, retaining Laravel 12 support.
+- Removed end-of-life Laravel 11 support, required Laravel 12.69+ / 13.30+, and retained PHP 8.2 coverage with Laravel 12. Added mandatory Composer audits without disabling security blocking or ignoring advisories.
 - Fixed invalid Tabulator column definition warnings by keeping spreadsheet metadata out of grid column options (#1).
 - Updated installation and persistence examples, demo screenshots, asset refresh instructions, and the Filament page navigation icon type for current Filament 5 compatibility.
 - Initial package skeleton.

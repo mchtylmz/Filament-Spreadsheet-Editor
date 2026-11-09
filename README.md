@@ -32,12 +32,12 @@ Demo previews (illustrative sample data):
 ## Requirements
 
 - PHP 8.2+ (PHP 8.3+ for Laravel 13)
-- Laravel 11, 12, or 13
+- Laravel 12.69+ or 13.30+
 - Filament v5
 - Livewire v4
 - Node.js 20.19+ or 22.12+ for asset builds
 
-Compatibility checked on November 9, 2026 with **Laravel 13.40.0, Filament 5.11.2, Livewire 4.4.8, and PHP 8.4**. Composer constraints also allow Laravel 11/12 and future compatible Filament 5 / Livewire 4 releases. CI covers Laravel 11 on PHP 8.2, and Laravel 12/13 on PHP 8.3 and 8.4.
+Compatibility checked on November 9, 2026 with **Laravel 13.40.0, Filament 5.11.2, Livewire 4.4.8, and PHP 8.4**. Composer constraints allow Laravel 12.69+ / 13.30+ and future compatible Filament 5 / Livewire 4 releases. CI covers Laravel 12 on PHP 8.2, 8.3, and 8.4, and Laravel 13 on PHP 8.3 and 8.4. Every matrix job runs `composer audit --locked` alongside tests and static analysis.
 
 See the upstream release notes for [Filament 5.11.2](https://github.com/filamentphp/filament/releases/tag/v5.11.2) and [Livewire 4.4.8](https://github.com/livewire/livewire/releases/tag/v4.4.8).
 
@@ -308,7 +308,9 @@ Add `tenantQuery()` to every editor whose model belongs to a tenant. For fail-cl
 - Run `composer ci` locally before upgrading production apps.
 - Watch release notes for adapter-level changes when AG Grid support is introduced.
 
-Laravel 13 requires PHP 8.3+. Package contributors testing Laravel 13 use Testbench 11 and Pest 4; older Laravel/PHP combinations retain compatible test dependency ranges. When extending Filament pages, match the current property types, including `string|BackedEnum|null` for `$navigationIcon`.
+Laravel 11 support has been removed: its [security support has ended](https://laravel.com/docs/11.x/releases#support-policy), and the security fixes required by this package's dependency checks are available in Laravel 12/13. Upgrade Laravel 11 applications to Laravel 12.69+ or 13.30+ before installing this revision. Composer security blocking remains enabled; no advisories are ignored.
+
+Laravel 13 requires PHP 8.3+. Package contributors testing Laravel 13 use Testbench 11 and Pest 4; Laravel 12 on PHP 8.2 retains compatible Testbench 10 and Pest 3 dependency ranges. When extending Filament pages, match the current property types, including `string|BackedEnum|null` for `$navigationIcon`.
 
 ## Roadmap
 
